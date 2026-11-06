@@ -103,10 +103,22 @@ input[type=range]{flex:1;min-width:120px;accent-color:var(--right);height:32px}
 .ladder{font-family:var(--mono);font-size:.82rem;color:var(--good)}
 .hint{font-size:.78rem;color:var(--mute);line-height:1.6}
 .hint kbd{font-family:var(--mono);background:var(--raise);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+/* Bibliothek */
+.lib{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;gap:10px;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:max(12px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.libList{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.song{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.song.cur{border-color:var(--right)}
+.song .t{flex:1;min-width:160px}
+.song .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song .m{font-size:.82rem;color:var(--mute);margin-top:2px;line-height:1.4}
+.song .del.armed{background:#c4384b;border-color:#c4384b;color:#fff;font-weight:600}
+.libEmpty{color:var(--mute);line-height:1.5;max-width:40ch}
 @media (max-width:560px){ .lbl{width:100%} .hint{display:none} }
 @media (orientation:landscape) and (max-height:520px){
   .wrap{grid-template-rows:none;grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr)}
-  header{display:none} body{padding-block:8px}
+  header{padding-block:4px} header h1{font-size:1rem} header h1 small{display:none} header button{min-height:36px}
   .deck{max-height:none}
 }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important} button:active{transform:none!important} }
@@ -117,7 +129,8 @@ input[type=range]{flex:1;min-width:120px;accent-color:var(--right);height:32px}
 
 <header>
   <h1 id="title">Übungsplayer<small>Klavier-Tutorials ohne Werbung</small></h1>
-  <button id="openBtn">Video öffnen</button>
+  <button id="libBtn">Bibliothek</button>
+  <button id="openBtn">+ Video</button>
   <input id="file" type="file" accept="video/*" hidden>
 </header>
 
@@ -143,6 +156,7 @@ input[type=range]{flex:1;min-width:120px;accent-color:var(--right);height:32px}
       </div>
       <p>Lade ein Tutorial-Video von deinem Handy oder PC. Es bleibt auf deinem Gerät, nichts wird hochgeladen.</p>
       <button class="big" id="openBig">Video auswählen</button>
+      <button id="libBig" hidden>Bibliothek öffnen</button>
       <p style="font-size:.8rem">Doppeltipp links/rechts im Video springt 5 Sekunden.</p>
     </div>
   </div>
@@ -290,6 +304,13 @@ input[type=range]{flex:1;min-width:120px;accent-color:var(--right);height:32px}
   </div>
 </div>
 
+<div class="lib" id="lib" hidden>
+  <header><h1>Bibliothek</h1><button id="libAdd">+ Video</button><button id="libClose">Schließen</button></header>
+  <div class="libList" id="libList"></div>
+  <p class="libEmpty" id="libEmpty">Noch keine Videos gespeichert. Jedes Video, das du öffnest, landet automatisch hier und bleibt auf diesem Gerät, auch wenn du die App schließt.</p>
+  <p class="sub mono" id="libStore"></p>
+</div>
+
 <script>
 const $=id=>document.getElementById(id);
 const v=$('v'), track=$('track'), stage=$('stage'), nc=$('nc'), ov=$('ov');
@@ -322,17 +343,87 @@ const today=()=>new Date().toISOString().slice(0,10);
 function lb(x){ let lo=0,hi=notes.length; while(lo<hi){ const m=(lo+hi)>>1; if(notes[m].s<x) lo=m+1; else hi=m } return lo }
 
 /* Video laden */
-function openFile(f){
-  if(!f) return;
-  if(v.src) URL.revokeObjectURL(v.src);
-  key=f.name+'|'+f.size; st=load(key); unpack(); reps=0; closeSetup();
-  v.src=URL.createObjectURL(f);
-  $('title').firstChild.textContent=f.name.replace(/\.[^.]+$/,'');
+const LIBK='kp:lib', LASTK='kp:last';
+function loadVideo(blob,k,name){
+  if(scanning) return;
+  if(v.src&&v.src.startsWith('blob:')) URL.revokeObjectURL(v.src);
+  key=k; st=load(key); unpack(); reps=0; closeSetup(); stopSynth();
+  v.src=URL.createObjectURL(blob);
+  $('title').firstChild.textContent=name;
   $('empty').hidden=true;
+  try{ localStorage.setItem(LASTK,k) }catch(e){}
   v.addEventListener('loadedmetadata',()=>{ if(st.pos<v.duration-1) v.currentTime=st.pos; drawAll() },{once:true});
 }
+function openFile(f){
+  if(!f) return; const k=f.name+'|'+f.size;
+  loadVideo(f,k,f.name.replace(/\.[^.]+$/,''));
+  if(libGet().some(x=>x.key===k)) touchLib(k); else storeVideo(f,k);
+}
+function unloadVideo(){
+  v.pause(); if(v.src&&v.src.startsWith('blob:')) URL.revokeObjectURL(v.src);
+  v.removeAttribute('src'); v.load();
+  key=null; st=fresh(); notes=null; closeSetup();
+  $('title').firstChild.textContent='Übungsplayer'; $('empty').hidden=false;
+  try{ localStorage.removeItem(LASTK) }catch(e){}
+  drawAll(); updateEmpty();
+}
+
+/* ---------- Bibliothek: Videos bleiben auf dem Gerät gespeichert ---------- */
+function libGet(){ try{ return JSON.parse(localStorage.getItem(LIBK))||[] }catch(e){ return [] } }
+function libSet(l){ try{ localStorage.setItem(LIBK,JSON.stringify(l)) }catch(e){} }
+let dbP=null;
+function db(){ return dbP||(dbP=new Promise((res,rej)=>{ try{ const r=indexedDB.open('klavier-player',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('videos'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error) }catch(e){ rej(e) } })) }
+async function idb(mode,fn){ const d=await db(); return new Promise((res,rej)=>{ const t=d.transaction('videos',mode), q=fn(t.objectStore('videos'));
+  t.oncomplete=()=>res(q.result); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error) }) }
+async function storeVideo(f,k){
+  try{ await idb('readwrite',s=>s.put(f,k));
+    try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist() }catch(e){}
+    const l=libGet().filter(x=>x.key!==k); l.unshift({key:k,name:f.name.replace(/\.[^.]+$/,''),size:f.size,last:Date.now()}); libSet(l);
+    flash('c','In der Bibliothek gespeichert'); updateEmpty();
+  }catch(e){ flash('c','Nicht gespeichert: Gerätespeicher voll?') }
+}
+function touchLib(k){ const l=libGet(), i=l.findIndex(x=>x.key===k); if(i<0) return; const [x]=l.splice(i,1); x.last=Date.now(); l.unshift(x); libSet(l) }
+async function openFromLib(k){
+  const it=libGet().find(x=>x.key===k); if(!it) return false;
+  let blob=null; try{ blob=await idb('readonly',s=>s.get(k)) }catch(e){}
+  if(!blob){ flash('c','Dieses Video ist nicht mehr auf dem Gerät'); libSet(libGet().filter(x=>x.key!==k)); renderLib(); updateEmpty(); return false }
+  loadVideo(blob,k,it.name); touchLib(k); closeLib(); return true;
+}
+async function deleteSong(k){
+  try{ await idb('readwrite',s=>s.delete(k)) }catch(e){}
+  try{ localStorage.removeItem('kp:'+k) }catch(e){}
+  libSet(libGet().filter(x=>x.key!==k));
+  if(key===k) unloadVideo();
+  renderLib(); updateEmpty();
+}
+const mb=b=>b>=1e9?(b/1e9).toFixed(1).replace('.',',')+' GB':Math.max(1,Math.round(b/1e6))+' MB';
+function renderLib(){
+  const l=libGet(), box=$('libList'); box.innerHTML=''; $('libEmpty').hidden=l.length>0;
+  l.forEach(it=>{
+    let info=[]; try{ const s=JSON.parse(localStorage.getItem('kp:'+it.key)); if(s){ if(s.keyInfo) info.push(s.keyInfo.name); if(s.notes&&s.notes.length) info.push(s.notes.length+' Noten'); if(s.total>=60) info.push(dur(s.total)+' geübt') } }catch(e){}
+    const row=document.createElement('div'); row.className='song'+(it.key===key?' cur':'');
+    row.innerHTML='<div class="t"><div class="n"></div><div class="m"></div></div><button class="op">Öffnen</button><button class="del">Löschen</button>';
+    row.querySelector('.n').textContent=it.name;
+    row.querySelector('.m').textContent=[mb(it.size),...info,'zuletzt '+new Date(it.last).toLocaleDateString('de-DE')].join(' · ');
+    row.querySelector('.op').onclick=()=>openFromLib(it.key);
+    const del=row.querySelector('.del');
+    del.onclick=()=>{ if(del.classList.contains('armed')){ deleteSong(it.key); return }
+      del.classList.add('armed'); del.textContent='Wirklich löschen?';
+      setTimeout(()=>{ del.classList.remove('armed'); del.textContent='Löschen' },3000) };
+    box.append(row);
+  });
+  $('libStore').textContent='';
+  try{ if(navigator.storage&&navigator.storage.estimate) navigator.storage.estimate().then(e=>{ $('libStore').textContent='Speicher belegt: '+mb(e.usage||0)+(e.quota?' von '+mb(e.quota):'') }).catch(()=>{}) }catch(e){}
+}
+function openLib(){ if(scanning) return; renderLib(); $('lib').hidden=false }
+function closeLib(){ $('lib').hidden=true }
+function updateEmpty(){ $('libBig').hidden=!libGet().length }
+$('libBtn').onclick=$('libBig').onclick=openLib;
+$('libClose').onclick=closeLib;
+$('libAdd').onclick=()=>{ closeLib(); $('file').click() };
 $('openBtn').onclick=$('openBig').onclick=()=>$('file').click();
-$('file').onchange=e=>openFile(e.target.files[0]);
+$('file').onchange=e=>{ openFile(e.target.files[0]); e.target.value='' };
 ['dragenter','dragover'].forEach(n=>stage.addEventListener(n,e=>{e.preventDefault();$('wrap').classList.add('drag')}));
 ['dragleave','drop'].forEach(n=>stage.addEventListener(n,e=>{e.preventDefault();$('wrap').classList.remove('drag')}));
 stage.addEventListener('drop',e=>openFile(e.dataTransfer.files[0]));
@@ -769,15 +860,16 @@ function drawOverlay(){
   dot(xl+14,ya,8,'#ff5a7a','#fff'); dot(xl+14,yb,8,'#fff','#0b1220');
   c.font='600 11px Figtree, system-ui, sans-serif'; c.textAlign='left'; c.textBaseline='middle';
   const tag=(t,x,y)=>{ const w=c.measureText(t).width+12; c.fillStyle='rgba(0,0,0,.72)'; rr(c,x,y-10,w,20,10); c.fill(); c.fillStyle='#fff'; c.fillText(t,x+6,y) };
-  tag('schwarze Tasten',xl+28,ya); tag('weiße Tasten',xl+28,yb);
+
   const L=k.lay;
   if(L){ const s=R.w; // Videobreite in Bildschirmpunkten
     const ks=keysOf({a:R.x+L.a*s,W:L.W*s,j0:L.j0,j1:L.j1,o:L.o,ob:L.ob},k.shift);
-    for(const q of ks){ if(q.black){ c.fillStyle='#ff5a7a'; c.fillRect(q.c-1,ya-12,2,8) } else { c.fillStyle='#fff'; c.fillRect(q.c-1,yb+5,2,8);
+    // Markierungen sitzen direkt auf den Linien: rot = schwarze Taste, dunkel = weiße Taste
+    for(const q of ks){ if(q.black){ c.fillStyle='#ff5a7a'; c.fillRect(q.c-1.5,ya-7,3,14) } else { c.fillStyle='#0b1220'; c.fillRect(q.c-1.5,yb-7,3,14);
       if(q.p%12===0){ c.textAlign='center'; tag('C'+(Math.floor(q.p/12)-1),q.c-14,yb+24); c.textAlign='left' } } }
     for(const q of ks){ const h=prevDet.get(q.p); if(h) dot(q.c,q.black?ya:yb,7,'rgb('+h.rgb.join(',')+')','#fff') }
   }
-  const msg= fitMsg+(L?' · '+prevDet.size+' gedrückt':'');
+  const msg= L? fitMsg+' · '+prevDet.size+' gedrückt' : 'Rote Linie durch die schwarzen Tasten, weiße Linie durch die weißen'+(fitMsg?' · '+fitMsg:'');
   c.font='600 13px Figtree, system-ui, sans-serif'; const tw=c.measureText(msg).width+20;
   c.fillStyle='rgba(0,0,0,.75)'; rr(c,(cw-tw)/2,10,tw,28,14); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(msg,cw/2,24);
 }
@@ -849,7 +941,8 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&!v.pause
 
 /* Tastatur */
 document.addEventListener('keydown',e=>{
-  if(['INPUT','SELECT'].includes(e.target.tagName)||scanning) return;
+  if(e.key==='Escape'&&!$('lib').hidden){ closeLib(); return }
+  if(['INPUT','SELECT'].includes(e.target.tagName)||scanning||!$('lib').hidden) return;
   const k=e.key;
   if(k===' '){e.preventDefault();toggle()}
   else if(k==='ArrowLeft'){e.preventDefault();jump(e.shiftKey?-5:-2)}
@@ -865,7 +958,9 @@ document.addEventListener('keydown',e=>{
   else if(k==='v'||k==='V'){ if(notes){ st.view=st.view==='notes'?'video':'notes'; applyView(); save() } }
   else if(k==='t'||k==='T'){ const o=notes?['video','synth','off']:['video','off']; st.sound=o[(o.indexOf(st.sound)+1)%o.length]; stopSynth(); ensureCtx(); applySound(); save() }
 });
-drawAll();
+drawAll(); updateEmpty();
+(async()=>{ let k=null; try{ k=localStorage.getItem(LASTK) }catch(e){}
+  if(k&&libGet().some(x=>x.key===k)) await openFromLib(k); })();
 </script>
 
 </body>
