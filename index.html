@@ -22,6 +22,7 @@
   color-scheme:dark;
 }
 html,body{height:100%}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;
   padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));
   display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -210,29 +211,25 @@ input[type=range]{flex:1;min-width:120px;accent-color:var(--right);height:32px}
       <summary>Noten aus dem Video</summary>
       <div class="help">
         <div class="info" id="nInfo">Noch keine Noten ausgelesen.</div>
-        <div class="row"><button id="calBtn">Einrichten</button><span class="sub">einmal pro Video</span></div>
+        <div class="row"><button id="calBtn">Einrichten</button><button id="swapH" hidden>Hände tauschen</button><span class="sub" id="calSub">einmal pro Video</span></div>
         <div id="calPanel" class="help" hidden>
           <ol class="steps">
-            <li><b>Pausiere</b> an einer Stelle, an der Balken beider Hände auf die Tasten treffen.</li>
-            <li>Ziehe die <b>waagerechte Linie</b> knapp über die Tastatur, oberhalb der Funken.</li>
-            <li>Ziehe die <b>zwei senkrechten Linien</b> auf die linke und rechte Kante der Tastatur.</li>
-            <li>Die kleinen Striche müssen <b>auf den Tasten</b> sitzen: weiß auf weißen, rot auf schwarzen. Sonst den Tastenbereich ändern.</li>
-            <li>Tippe auf <b>Farbe wählen</b> und dann auf einen Balken der jeweiligen Hand. Die Punkte auf der Linie zeigen, was erkannt wird.</li>
+            <li><b>Pausiere</b> an einer Stelle, an der möglichst wenige Tasten gedrückt sind, zum Beispiel ganz am Anfang.</li>
+            <li>Ziehe die <b>obere Linie</b> durch die schwarzen Tasten und die <b>untere Linie</b> durch die weißen Tasten unterhalb der schwarzen.</li>
+            <li>Die App erkennt die Tasten selbst. Prüfe, ob die Striche auf den Tasten sitzen und die C-Tasten richtig beschriftet sind. Stimmt die Oktave nicht, korrigiere sie mit − und +.</li>
+            <li>Spiel kurz ab: Gedrückte Tasten bekommen einen Punkt in ihrer Farbe. Fehlen Punkte, senke die Farbschwelle.</li>
           </ol>
           <div class="row">
             <span class="lbl">Tasten</span>
-            <select id="kLo" aria-label="Tiefste Taste"></select><span class="sub">bis</span><select id="kHi" aria-label="Höchste Taste"></select>
-            <div class="chips" id="kPre"></div>
+            <button id="fitBtn">Tasten erkennen</button>
+            <button id="octDn" class="mono" aria-label="Eine Oktave tiefer">−</button>
+            <span class="mono sub" id="octVal">Oktave ±0</span>
+            <button id="octUp" class="mono" aria-label="Eine Oktave höher">+</button>
           </div>
           <div class="row">
-            <span class="lbl">Farben</span>
-            <button id="pickL"><span class="sw" id="swL"></span> Links wählen</button>
-            <button id="pickR"><span class="sw" id="swR"></span> Rechts wählen</button>
-          </div>
-          <div class="row">
-            <span class="lbl">Toleranz</span>
-            <input id="tol" type="range" min="8" max="70" step="1" aria-label="Farbtoleranz">
-            <span class="mono sub" id="tolVal"></span>
+            <span class="lbl">Farbschwelle</span>
+            <input id="sat" type="range" min="0.12" max="0.7" step="0.01" aria-label="Farbschwelle">
+            <span class="mono sub" id="satVal"></span>
           </div>
           <div class="row">
             <span class="lbl">Auslesen</span>
@@ -304,15 +301,16 @@ const NS=['C','Cis','D','Dis','E','F','Fis','G','Gis','A','Ais','H'], NF=['C','D
 const nname=p=>(st.keyInfo&&st.keyInfo.flats?NF:NS)[p%12];
 const COL={L:'#f2b23a',LD:'#c7861a',R:'#4a9cf0',RD:'#2a6fc0',bg:'#0f1218',grid:'rgba(233,236,242,.06)',white:'#eef0f4',black:'#161a22',felt:'#8a2433',mute:'#8d97aa'};
 
-let key=null, st=fresh(), notes=null, reps=0, waiting=false, setup=false, scanning=false, aborted=false, pick=null, prevDet=[], dragH=null;
+let key=null, st=fresh(), notes=null, reps=0, waiting=false, setup=false, scanning=false, aborted=false, prevDet=new Map(), dragH=null, fitMsg='';
 function fresh(){return {a:null,b:null,loop:false,marks:[],speed:100,pos:0,ladder:false,ldStep:5,ldEvery:2,gap:0,zoom:1,zoomY:85,total:0,days:{},
   sound:'video',view:'video',hands:{L:true,R:true},showF:true,showN:false,notes:null,keyInfo:null,
-  cal:{y:.78,xl:.01,xr:.99,lo:21,hi:108,hL:42,hR:210,cL:'#f2b23a',cR:'#4a9cf0',tol:28,off:0}}}
+  range:null,handMode:null,
+  cal:{ya:.66,yb:.86,xl:0,xr:1,sat:.35,shift:0,off:0,lay:null}}}
 
 /* Speicher pro Video (Name + Größe), nur auf diesem Gerät */
 function save(){ if(!key) return; st.pos=v.currentTime||0; try{localStorage.setItem('kp:'+key,JSON.stringify(st))}catch(e){} }
 function load(k){ const f=fresh(); try{const s=JSON.parse(localStorage.getItem('kp:'+k)); if(s){ const r=Object.assign(f,s);
-  r.cal=Object.assign(fresh().cal,s.cal||{}); r.hands=Object.assign({L:true,R:true},s.hands||{}); if(s.muted&&!s.sound) r.sound='off'; return r }}catch(e){} return f }
+  r.cal=Object.assign(fresh().cal,s.cal&&('ya' in s.cal)?s.cal:{}); r.hands=Object.assign({L:true,R:true},s.hands||{}); if(s.muted&&!s.sound) r.sound='off'; return r }}catch(e){} return f }
 function pack(){ return notes? notes.map(n=>[n.p,+n.s.toFixed(3),+n.e.toFixed(3),n.h==='L'?0:1,n.f||0]) : null }
 function unpack(){ notes= st.notes&&st.notes.length? st.notes.map(a=>({p:a[0],s:a[1],e:a[2],h:a[3]?'R':'L',f:a[4]||0})).sort((a,b)=>a.s-b.s) : null }
 
@@ -518,47 +516,111 @@ function layout(lo,hi,x0,width){
   return {wk,W,map};
 }
 
-/* ---------- Erkennung: eine Pixelzeile knapp über der Tastatur ---------- */
-const dc=document.createElement('canvas'), dctx=dc.getContext('2d',{willReadFrequently:true});
-function hueOf(r,g,b){ const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn; if(mx<60||d/mx<.3) return -1;
-  let h; if(mx===r) h=((g-b)/d)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; return h<0?h+360:h }
-const hd=(a,b)=>{const d=Math.abs(a-b)%360; return d>180?360-d:d};
-function detect(){
-  const vw=v.videoWidth, vh=v.videoHeight; if(!vw||v.readyState<2) return [];
-  const c=st.cal, sx=Math.max(0,Math.floor(c.xl*vw)), ex=Math.min(vw,Math.ceil(c.xr*vw)), sw=ex-sx; if(sw<20) return [];
-  const sh=7, sy=Math.max(0,Math.min(vh-sh,Math.round(c.y*vh)-3));
-  if(dc.width!==sw||dc.height!==sh){dc.width=sw;dc.height=sh}
-  dctx.drawImage(v,sx,sy,sw,sh,0,0,sw,sh);
-  const d=dctx.getImageData(0,0,sw,sh).data, cls=new Uint8Array(sw);
-  for(let x=0;x<sw;x++){ let l=0,r=0;
-    for(const y of [0,3,6]){ const i=(y*sw+x)*4, h=hueOf(d[i],d[i+1],d[i+2]); if(h<0) continue;
-      const a=hd(h,c.hL), b=hd(h,c.hR); if(a<c.tol&&a<=b) l++; else if(b<c.tol) r++ }
-    cls[x]= l>=2?1: r>=2?2:0 }
-  const L=layout(c.lo,c.hi,0,sw), W=L.W, out=new Map();
-  let x=0;
-  while(x<sw){ const k=cls[x]; if(!k){x++;continue}
-    let e=x; while(e+1<sw&&cls[e+1]===k) e++;
-    const w=e-x+1, h=k===1?'L':'R';
-    if(w>=W*.2){ const cen=(x+e)/2;
-      if(w>1.5*W){ for(let i=0;i<L.wk.length;i++){ const cc=(i+.5)*W; if(cc>=x&&cc<=e) out.set(L.wk[i],h) } }
-      else { const iw=Math.max(0,Math.min(L.wk.length-1,Math.floor(cen/W))), dw=Math.abs(cen-(iw+.5)*W), b=Math.round(cen/W), db=Math.abs(cen-b*W);
-        const bp= b>0&&b<L.wk.length? L.wk[b-1]+1 : null;
-        out.set(bp!=null&&isBlack(bp)&&db<dw? bp : L.wk[iw], h) } }
-    x=e+1 }
-  return [...out];
+/* ---------- Erkennung direkt auf den Tasten ---------- */
+const WHITE_PC=[0,2,4,5,7,9,11];
+function px(d,i){ const r=d[i],g=d[i+1],b=d[i+2], mx=Math.max(r,g,b), mn=Math.min(r,g,b), dd=mx-mn;
+  let h=-1; if(dd>0){ if(mx===r) h=((g-b)/dd)%6; else if(mx===g) h=(b-r)/dd+2; else h=(r-g)/dd+4; h*=60; if(h<0) h+=360 }
+  return {v:mx/255, s:mx?dd/mx:0, h, l:(0.299*r+0.587*g+0.114*b)/255} }
+/* Tastatur aus zwei Pixelzeilen erkennen: A läuft durch die schwarzen Tasten, B nur durch die weißen */
+function fitLayout(rowA,rowB,w){
+  // Ausdehnung der Tastatur über die helle Zeile B
+  const keyish=x=>{ const p=px(rowB,x*4); return p.l>.45||(p.s>.3&&p.v>.3) };
+  let kx0=0; while(kx0<w&&!keyish(kx0)) kx0++;
+  let kx1=w-1; while(kx1>kx0&&!keyish(kx1)) kx1--;
+  if(kx1-kx0<w*.2) return {err:'Die untere Linie liegt nicht auf den weißen Tasten.'};
+  // schwarze Tasten = dunkle, graue Abschnitte in Zeile A
+  const dark=x=>{ const p=px(rowA,x*4); return p.l<.3&&p.s<.4 };
+  const runs=[]; let x=kx0;
+  while(x<=kx1){ if(!dark(x)){x++;continue} let e=x; while(e+1<=kx1&&dark(e+1)) e++; if(e-x+1>=2&&x>kx0&&e<kx1) runs.push([x,e]); x=e+1 }
+  if(runs.length<4) return {err:'Zu wenige schwarze Tasten gefunden. Die obere Linie muss durch die schwarzen Tasten laufen.'};
+  const ws=runs.map(r=>r[1]-r[0]+1).sort((a,b)=>a-b), mw=ws[ws.length>>1];
+  const bl=runs.filter(r=>{const q=r[1]-r[0]+1; return q>=mw*.5&&q<=mw*1.8}).map(r=>(r[0]+r[1])/2);
+  if(bl.length<4) return {err:'Die schwarzen Tasten sind nicht eindeutig.'};
+  const ds=[]; for(let i=1;i<bl.length;i++) ds.push(bl[i]-bl[i-1]);
+  const minD=Math.min(...ds);
+  let bestW=minD,bc=1e9;
+  for(let W=minD*.8;W<=minD*1.25;W+=.05){ let c=0; for(const d of ds){ const r=d/W-Math.round(d/W); c+=r*r } if(c<bc){bc=c;bestW=W} }
+  const m=[0]; for(let i=0;i<ds.length;i++) m.push(m[i]+Math.max(1,Math.round(ds[i]/bestW)));
+  // Feinanpassung a + m*W per kleinster Quadrate
+  const n=bl.length, sm=m.reduce((s,v)=>s+v,0), sc=bl.reduce((s,v)=>s+v,0), smm=m.reduce((s,v)=>s+v*v,0), smc=m.reduce((s,v,i)=>s+v*bl[i],0);
+  const W=(n*smc-sm*sc)/(n*smm-sm*sm), a=(sc-W*sm)/n;
+  // welche Lücken (E-F, H-C) passen zum Muster?
+  const has=new Set(m); let bo=0,bs=-1e9;
+  for(let o=0;o<7;o++){ let s=0; for(const j of has){ const L=((j+o)%7+7)%7; s+= [0,1,3,4,5].includes(L)?1:-3 } if(s>bs){bs=s;bo=o} }
+  const j0=Math.ceil((kx0-a)/W+.5), j1=Math.floor((kx1-a)/W+.5);
+  if(j1-j0<6) return {err:'Zu wenige weiße Tasten erkannt.'};
+  // Oktave: mittlere weiße Taste möglichst nah an E4/F4 (Mitte eines 88er-Klaviers)
+  const jm=Math.round((j0+j1)/2); let ob=0,bd=1e9;
+  for(let k=-2;k<=8;k++){ const p=wp(jm,{o:bo,ob:k}); const d=Math.abs(p-64.5); if(d<bd){bd=d;ob=k} }
+  return {a,W,j0,j1,o:bo,ob,kx0,kx1,score:bs,n:bl.length};
 }
+/* Tonhöhe der weißen Taste j: weiße Taste j liegt zwischen den Grenzen a+(j-1)W und a+jW */
+function wp(j,l){ const t=j+l.o, L=((t%7)+7)%7, oc=Math.floor(t/7)+l.ob; return 12*(oc+1)+WHITE_PC[L] }
+function keysOf(l,shift){ const ks=[];
+  for(let j=l.j0;j<=l.j1;j++){ const p=wp(j,l)+12*(shift||0), c=l.a+(j-.5)*l.W; ks.push({p,black:false,c,r:Math.max(1,Math.round(l.W*.14))});
+    const L=(((j+l.o)%7)+7)%7; if(j<l.j1&&[0,1,3,4,5].includes(L)) ks.push({p:p+1,black:true,c:l.a+j*l.W,r:Math.max(1,Math.round(l.W*.1))}) }
+  return ks.sort((x,y)=>x.p-y.p) }
+/* gedrückte Tasten: farbige Pixel auf der Taste selbst. dA/dB = je 3 Zeilen RGBA, Breite w */
+function readKeys(dA,dB,w,keys,S){
+  const out=new Map();
+  const scan=(d,c,r)=>{ let n=0,k=0,sx=0,cy=0,R=0,G=0,B=0;
+    for(let y=0;y<3;y++) for(let x=Math.round(c-r);x<=Math.round(c+r);x++){ if(x<0||x>=w) continue; const i=(y*w+x)*4, q=px(d,i); n++;
+      if(q.s>S&&q.v>.25&&q.h>=0){ k++; const rad=q.h*Math.PI/180; sx+=Math.cos(rad); cy+=Math.sin(rad); R+=d[i];G+=d[i+1];B+=d[i+2] } }
+    return n&&k/n>=.5? {h:(Math.atan2(cy,sx)*180/Math.PI+360)%360, rgb:[R/k|0,G/k|0,B/k|0]} : null };
+  for(const kk of keys){ const hit= kk.black? scan(dA,kk.c,kk.r) : (scan(dA,kk.c,kk.r)||scan(dB,kk.c,kk.r)); if(hit) out.set(kk.p,hit) }
+  return out }
+/* Hände: Farbtöne der Noten in zwei Gruppen teilen, tiefere Gruppe = links */
+const hdist=(a,b)=>{const d=Math.abs(a-b)%360; return d>180?360-d:d};
+function assignHands(ns){
+  if(!ns.length) return 'none';
+  const bins=new Array(36).fill(0); ns.forEach(n=>bins[Math.floor(n.hue/10)%36]++);
+  let p1=bins.indexOf(Math.max(...bins)), p2=-1, b2=0;
+  bins.forEach((v,i)=>{ if(hdist(i*10,p1*10)>=40&&v>b2){b2=v;p2=i} });
+  if(p2<0||b2<ns.length*.05){ ns.forEach(n=>n.h=n.p<60?'L':'R'); return 'split' }
+  let c=[p1*10+5,p2*10+5];
+  for(let it=0;it<6;it++){ const acc=[[0,0],[0,0]];
+    ns.forEach(n=>{ n.g=hdist(n.hue,c[0])<=hdist(n.hue,c[1])?0:1; const r=n.hue*Math.PI/180; acc[n.g][0]+=Math.cos(r); acc[n.g][1]+=Math.sin(r) });
+    c=acc.map(([x,y],i)=>(x||y)?(Math.atan2(y,x)*180/Math.PI+360)%360:c[i]) }
+  const mp=[0,1].map(g=>{ const s=ns.filter(n=>n.g===g); return s.reduce((t,n)=>t+n.p,0)/(s.length||1) });
+  const left=mp[0]<=mp[1]?0:1; ns.forEach(n=>{ n.h=n.g===left?'L':'R'; delete n.g });
+  return 'color' }
+
+const dc=document.createElement('canvas'), dctx=dc.getContext('2d',{willReadFrequently:true});
+/* zwei Streifen à 3 Pixelzeilen aus dem aktuellen Videobild */
+function grab(){
+  const vw=v.videoWidth, vh=v.videoHeight; if(!vw||v.readyState<2) return null;
+  const c=st.cal, sx=Math.max(0,Math.floor(c.xl*vw)), ex=Math.min(vw,Math.ceil(c.xr*vw)), w=ex-sx; if(w<40) return null;
+  const ya=Math.max(1,Math.min(vh-2,Math.round(c.ya*vh))), yb=Math.max(1,Math.min(vh-2,Math.round(c.yb*vh)));
+  if(dc.width!==w||dc.height!==6){dc.width=w;dc.height=6}
+  dctx.drawImage(v,sx,ya-1,w,3,0,0,w,3); dctx.drawImage(v,sx,yb-1,w,3,0,3,w,3);
+  const d=dctx.getImageData(0,0,w,6).data;
+  return {w,sx,vw,A:d.subarray(0,w*12),B:d.subarray(w*12,w*24)};
+}
+function tryFit(){
+  const g=grab(); if(!g){ fitMsg='Video noch nicht bereit'; return false }
+  const l=fitLayout(g.A.subarray(g.w*4,g.w*8),g.B.subarray(g.w*4,g.w*8),g.w);
+  if(l.err){ st.cal.lay=null; fitMsg=l.err; drawCal(); drawOverlay(); return false }
+  st.cal.lay={a:(l.a+g.sx)/g.vw,W:l.W/g.vw,j0:l.j0,j1:l.j1,o:l.o,ob:l.ob};
+  fitMsg=(l.j1-l.j0+1)+' weiße Tasten erkannt'; drawCal(); save(); return true;
+}
+function curKeys(g){ const L=st.cal.lay; if(!L) return null;
+  return keysOf({a:L.a*g.vw-g.sx,W:L.W*g.vw,j0:L.j0,j1:L.j1,o:L.o,ob:L.ob},st.cal.shift) }
+function detect(){ const g=grab(); if(!g) return new Map(); const ks=curKeys(g); if(!ks) return new Map();
+  return readKeys(g.A,g.B,g.w,ks,st.cal.sat) }
 
 /* ---------- Auslesen: Video einmal stumm durchlaufen lassen ---------- */
 let finishScan=null;
 async function scanNotes(){
   if(!v.duration||scanning) return;
+  if(!st.cal.lay&&!tryFit()){ flash('c','Erst Tasten erkennen'); return }
   scanning=true; aborted=false; stopSynth();
   const keepLoop=st.loop; st.loop=false; cancelGap(); v.pause(); applySound();
   setup=false; stage.classList.remove('setup'); drawOverlay();
   $('scan').hidden=false; $('deck').classList.add('busy'); $('scanBar').style.width='0'; $('scanTxt').textContent='0 %'; drawLoop();
   v.currentTime=0; await new Promise(r=>v.addEventListener('seeked',r,{once:true}));
   v.playbackRate=+$('scanRate').value;
-  const act=new Map(), out=[]; let tl=0;
+  const act=new Map(), out=[]; let tl=0, ks=null;
+  const close=(n,t)=>{ n.e=t; n.hue=(Math.atan2(n.sy,n.sx)*180/Math.PI+360)%360; out.push(n) };
   await new Promise(res=>{
     let done=false;
     finishScan=()=>{ if(done) return; done=true; v.removeEventListener('ended',finishScan); res() };
@@ -566,9 +628,14 @@ async function scanNotes(){
     const frame=(now,meta)=>{
       if(done) return; if(!scanning||v.ended){ finishScan(); return }
       const t=meta?meta.mediaTime:v.currentTime; tl=t;
-      const cur=new Map(detect());
-      for(const [p,h] of cur){ const n=act.get(p); if(!n) act.set(p,{p,s:t,h}); else if(n.h!==h){ n.e=t; out.push(n); act.set(p,{p,s:t,h}) } }
-      for(const [p,n] of act) if(!cur.has(p)){ n.e=t; out.push(n); act.delete(p) }
+      const g=grab();
+      if(g){ if(!ks) ks=curKeys(g);
+        const cur=readKeys(g.A,g.B,g.w,ks,st.cal.sat);
+        for(const [p,q] of cur){ const r=q.h*Math.PI/180; let n=act.get(p);
+          if(n&&n.k>2&&hdist((Math.atan2(n.sy,n.sx)*180/Math.PI+360)%360,q.h)>50){ close(n,t); n=null }
+          if(!n){ n={p,s:t,sx:0,sy:0,k:0}; act.set(p,n) }
+          n.sx+=Math.cos(r); n.sy+=Math.sin(r); n.k++ }
+        for(const [p,n] of act) if(!cur.has(p)){ close(n,t); act.delete(p) } }
       const pct=Math.min(100,Math.round(t/v.duration*100));
       $('scanBar').style.width=pct+'%'; $('scanTxt').textContent=pct+' % · '+(out.length+act.size)+' Noten';
       next();
@@ -578,17 +645,20 @@ async function scanNotes(){
     v.play().catch(()=>{ aborted=true; finishScan() });
   });
   v.pause();
-  for(const n of act.values()){ n.e=tl; out.push(n) }
+  for(const n of act.values()) close(n,tl);
   scanning=false; st.loop=keepLoop; applySpeed(); applySound();
   $('scan').hidden=true; $('deck').classList.remove('busy');
-  const ns=out.filter(n=>n.e-n.s>=.035).sort((a,b)=>a.s-b.s);
-  if(!ns.length){ v.currentTime=0; drawLoop(); $('nInfo').textContent='Keine Noten erkannt. Prüfe die Linie und die Farben unter „Einrichten“.'; flash('c','Keine Noten erkannt'); return }
+  const ns=out.filter(n=>n.e-n.s>=.035).sort((a,b)=>a.s-b.s).map(n=>({p:n.p,s:n.s,e:n.e,hue:n.hue}));
+  if(!ns.length){ v.currentTime=0; drawLoop(); $('nInfo').textContent='Keine Noten erkannt. Prüfe unter „Einrichten“, ob beim Abspielen Punkte auf gedrückten Tasten erscheinen.'; flash('c','Keine Noten erkannt'); return }
+  st.handMode=assignHands(ns); ns.forEach(n=>delete n.hue);
   notes=ns; assignFingers(notes); st.keyInfo=detectKey(notes); st.notes=pack();
+  const g=grab(), ks2=g&&curKeys(g); if(ks2){ const wh=ks2.filter(k=>!k.black).map(k=>k.p); st.range=[wh[0],wh[wh.length-1]] }
   st.view='notes'; v.currentTime=0; closeSetup(); drawAll(); save();
   flash('c',notes.length+' Noten erkannt'+(aborted?' (abgebrochen)':''));
 }
 $('scanGo').onclick=scanNotes;
 $('scanStop').onclick=e=>{ e.stopPropagation(); aborted=true; scanning=false; if(finishScan) finishScan() };
+$('swapH').onclick=()=>{ if(!notes) return; notes.forEach(n=>n.h=n.h==='L'?'R':'L'); assignFingers(notes); st.notes=pack(); stopSynth(); drawNoteInfo(); save(); flash('c','Hände getauscht') };
 
 /* ---------- Fingersatz: kürzester Weg über alle Griffe einer Hand ---------- */
 const COMB={}; for(let k=1;k<=5;k++){ COMB[k]=[]; const rec=(s,a)=>{ if(a.length===k){COMB[k].push(a.slice());return} for(let f=s;f<=5;f++){a.push(f);rec(f+1,a);a.pop()} }; rec(1,[]) }
@@ -641,12 +711,14 @@ function detectKey(ns){
 }
 
 /* ---------- Notenansicht zeichnen ---------- */
+function noteRange(){ if(st.range) return st.range; let lo=127,hi=0; notes.forEach(n=>{lo=Math.min(lo,n.p);hi=Math.max(hi,n.p)});
+  lo-=2; hi+=2; while(isBlack(lo)) lo--; while(isBlack(hi)) hi++; return [lo,hi] }
 let cw=0, chh=0;
 function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,Math.min(r,h/2,w/2)); else c.rect(x,y,w,h) }
 function drawNotes(){
   const c=nctx, W=cw, H=chh; if(!W||!H) return;
   c.fillStyle=COL.bg; c.fillRect(0,0,W,H);
-  const L=layout(st.cal.lo,st.cal.hi,0,W), kh=Math.max(54,Math.min(150,H*.22)), top=H-kh, win=3, pps=top/win;
+  const rg=noteRange(), L=layout(rg[0],rg[1],0,W), kh=Math.max(54,Math.min(150,H*.22)), top=H-kh, win=3, pps=top/win;
   const t=v.currentTime, off=st.cal.off/1000;
   c.fillStyle=COL.grid; for(const p of L.wk) if(p%12===0) c.fillRect(L.map[p].x,0,1,top);
   const active=new Map();
@@ -683,80 +755,72 @@ function drawNotes(){
     c.fillText(st.keyInfo.name,W-12,10); c.font='500 11px Figtree, system-ui, sans-serif'; c.fillStyle=COL.mute; c.fillText(st.keyInfo.sig,W-12,30) }
 }
 
-/* ---------- Einrichtung: Linien ziehen, Farben antippen ---------- */
+/* ---------- Einrichtung: Linien ziehen, Tasten erkennen ---------- */
 function vRect(){ const r=stage.getBoundingClientRect(), vw=v.videoWidth||16, vh=v.videoHeight||9, s=Math.min(r.width/vw,r.height/vh), w=vw*s, h=vh*s;
   return {x:(r.width-w)/2,y:(r.height-h)/2,w,h} }
 function drawOverlay(){
   const c=octx; c.clearRect(0,0,cw,chh); if(!setup) return;
-  const R=vRect(), k=st.cal, y=R.y+k.y*R.h, xl=R.x+k.xl*R.w, xr=R.x+k.xr*R.w;
-  c.lineWidth=2; c.strokeStyle='#fff'; c.setLineDash([6,5]);
-  c.beginPath(); c.moveTo(R.x,y); c.lineTo(R.x+R.w,y); c.moveTo(xl,R.y); c.lineTo(xl,R.y+R.h); c.moveTo(xr,R.y); c.lineTo(xr,R.y+R.h); c.stroke(); c.setLineDash([]);
-  const dot=(x,yy,r,f,s)=>{ c.beginPath(); c.arc(x,yy,r,0,7); c.fillStyle=f; c.fill(); if(s){ c.strokeStyle=s; c.lineWidth=2; c.stroke() } };
-  dot(xl,y-30,9,'#fff'); dot(xr,y-30,9,'#fff'); dot((xl+xr)/2,y-30,9,'#fff');
-  const L=layout(k.lo,k.hi,xl,xr-xl);
-  for(const p in L.map){ const m=L.map[p]; c.fillStyle=m.black?'#ff5a7a':'#fff'; c.fillRect(m.c-1,m.black?y-11:y+4,2,7) }
-  for(const [p,h] of prevDet){ const m=L.map[p]; if(m) dot(m.c,y,6,h==='L'?k.cL:k.cR,'#fff') }
-  const msg= pick? 'Tippe auf einen Balken der '+(pick==='L'?'linken':'rechten')+' Hand' : prevDet.length+' Tasten auf der Linie erkannt';
+  const R=vRect(), k=st.cal, ya=R.y+k.ya*R.h, yb=R.y+k.yb*R.h, xl=R.x+k.xl*R.w, xr=R.x+k.xr*R.w;
+  c.lineWidth=2; c.setLineDash([6,5]);
+  c.strokeStyle='#ff5a7a'; c.beginPath(); c.moveTo(xl,ya); c.lineTo(xr,ya); c.stroke();
+  c.strokeStyle='#ffffff'; c.beginPath(); c.moveTo(xl,yb); c.lineTo(xr,yb); c.moveTo(xl,R.y); c.lineTo(xl,R.y+R.h); c.moveTo(xr,R.y); c.lineTo(xr,R.y+R.h); c.stroke();
+  c.setLineDash([]);
+  const dot=(x,y,r,f,s)=>{ c.beginPath(); c.arc(x,y,r,0,7); c.fillStyle=f; c.fill(); if(s){ c.strokeStyle=s; c.lineWidth=2; c.stroke() } };
+  dot(xl+14,ya,8,'#ff5a7a','#fff'); dot(xl+14,yb,8,'#fff','#0b1220');
+  c.font='600 11px Figtree, system-ui, sans-serif'; c.textAlign='left'; c.textBaseline='middle';
+  const tag=(t,x,y)=>{ const w=c.measureText(t).width+12; c.fillStyle='rgba(0,0,0,.72)'; rr(c,x,y-10,w,20,10); c.fill(); c.fillStyle='#fff'; c.fillText(t,x+6,y) };
+  tag('schwarze Tasten',xl+28,ya); tag('weiße Tasten',xl+28,yb);
+  const L=k.lay;
+  if(L){ const s=R.w; // Videobreite in Bildschirmpunkten
+    const ks=keysOf({a:R.x+L.a*s,W:L.W*s,j0:L.j0,j1:L.j1,o:L.o,ob:L.ob},k.shift);
+    for(const q of ks){ if(q.black){ c.fillStyle='#ff5a7a'; c.fillRect(q.c-1,ya-12,2,8) } else { c.fillStyle='#fff'; c.fillRect(q.c-1,yb+5,2,8);
+      if(q.p%12===0){ c.textAlign='center'; tag('C'+(Math.floor(q.p/12)-1),q.c-14,yb+24); c.textAlign='left' } } }
+    for(const q of ks){ const h=prevDet.get(q.p); if(h) dot(q.c,q.black?ya:yb,7,'rgb('+h.rgb.join(',')+')','#fff') }
+  }
+  const msg= fitMsg+(L?' · '+prevDet.size+' gedrückt':'');
   c.font='600 13px Figtree, system-ui, sans-serif'; const tw=c.measureText(msg).width+20;
-  c.fillStyle='rgba(0,0,0,.72)'; rr(c,(cw-tw)/2,10,tw,28,14); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(msg,cw/2,24);
+  c.fillStyle='rgba(0,0,0,.75)'; rr(c,(cw-tw)/2,10,tw,28,14); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(msg,cw/2,24);
 }
 ov.addEventListener('pointerdown',e=>{
   if(!setup) return; e.preventDefault();
   const r=stage.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top, R=vRect(), k=st.cal;
-  if(pick){ pickColor(px,py,R); return }
-  const y=R.y+k.y*R.h, xl=R.x+k.xl*R.w, xr=R.x+k.xr*R.w;
-  const cand=[['y',Math.abs(py-y)],['xl',Math.abs(px-xl)],['xr',Math.abs(px-xr)]].sort((a,b)=>a[1]-b[1]);
+  const cand=[['ya',Math.abs(py-(R.y+k.ya*R.h))],['yb',Math.abs(py-(R.y+k.yb*R.h))],['xl',Math.abs(px-(R.x+k.xl*R.w))],['xr',Math.abs(px-(R.x+k.xr*R.w))]].sort((a,b)=>a[1]-b[1]);
   if(cand[0][1]<32){ dragH=cand[0][0]; ov.setPointerCapture(e.pointerId) }
 });
 ov.addEventListener('pointermove',e=>{
   if(!dragH) return; const r=stage.getBoundingClientRect(), R=vRect(), k=st.cal;
   const nx=Math.max(0,Math.min(1,(e.clientX-r.left-R.x)/R.w)), ny=Math.max(0,Math.min(1,(e.clientY-r.top-R.y)/R.h));
-  if(dragH==='y') k.y=ny; else if(dragH==='xl') k.xl=Math.min(nx,k.xr-.05); else k.xr=Math.max(nx,k.xl+.05);
-  prevDet=detect(); drawOverlay();
+  if(dragH==='ya') k.ya=Math.min(ny,k.yb-.01); else if(dragH==='yb') k.yb=Math.max(ny,k.ya+.01);
+  else if(dragH==='xl') k.xl=Math.min(nx,k.xr-.1); else k.xr=Math.max(nx,k.xl+.1);
+  drawOverlay();
 });
-ov.addEventListener('pointerup',()=>{ if(dragH){ dragH=null; save() } });
-function pickColor(px,py,R){
-  const vw=v.videoWidth, vh=v.videoHeight, vx=Math.round((px-R.x)/R.w*vw), vy=Math.round((py-R.y)/R.h*vh);
-  if(vx<0||vy<0||vx>=vw||vy>=vh||v.readyState<2) return;
-  const s=11, sx=Math.max(0,Math.min(vw-s,vx-5)), sy=Math.max(0,Math.min(vh-s,vy-5));
-  dc.width=s; dc.height=s; dctx.drawImage(v,sx,sy,s,s,0,0,s,s);
-  const d=dctx.getImageData(0,0,s,s).data; let best=-1,bh=-1,bc=null;
-  for(let i=0;i<d.length;i+=4){ const r=d[i],g=d[i+1],b=d[i+2], h=hueOf(r,g,b); if(h<0) continue;
-    const m=Math.max(r,g,b), sc=(m-Math.min(r,g,b))*m; if(sc>best){best=sc;bh=h;bc=[r,g,b]} }
-  if(bh<0){ flash('c','Dort ist keine Farbe. Tippe mitten auf einen Balken.'); return }
-  const hex='#'+bc.map(x=>x.toString(16).padStart(2,'0')).join('');
-  if(pick==='L'){ st.cal.hL=bh; st.cal.cL=hex } else { st.cal.hR=bh; st.cal.cR=hex }
-  if(hd(st.cal.hL,st.cal.hR)<st.cal.tol*1.3) flash('c','Die Farben sind sehr ähnlich, Toleranz verringern');
-  pick=null; drawCal(); prevDet=detect(); drawOverlay(); save();
-}
-$('pickL').onclick=()=>{ pick=pick==='L'?null:'L'; drawCal(); drawOverlay() };
-$('pickR').onclick=()=>{ pick=pick==='R'?null:'R'; drawCal(); drawOverlay() };
+ov.addEventListener('pointerup',()=>{ if(dragH){ dragH=null; tryFit(); prevDet=detect(); drawOverlay(); save() } });
 
-function fillRange(){ for(let p=21;p<=108;p++) if(!isBlack(p)){ const n=NS[p%12]+(Math.floor(p/12)-1); $('kLo').add(new Option(n,p)); $('kHi').add(new Option(n,p)) }
-  Object.keys(RANGES).sort((a,b)=>b-a).forEach(n=>{ const b=document.createElement('button'); b.className='mono'; b.textContent=n; b.dataset.n=n;
-    b.onclick=()=>{ [st.cal.lo,st.cal.hi]=RANGES[n]; drawCal(); prevDet=detect(); drawOverlay(); save() }; $('kPre').append(b) }) }
-fillRange();
-$('kLo').onchange=e=>{ st.cal.lo=Math.min(+e.target.value,st.cal.hi-12); drawCal(); prevDet=detect(); drawOverlay(); save() };
-$('kHi').onchange=e=>{ st.cal.hi=Math.max(+e.target.value,st.cal.lo+12); drawCal(); prevDet=detect(); drawOverlay(); save() };
-$('tol').oninput=e=>{ st.cal.tol=+e.target.value; drawCal(); prevDet=detect(); drawOverlay(); save() };
+$('fitBtn').onclick=()=>{ tryFit(); prevDet=detect(); drawOverlay() };
+$('octDn').onclick=()=>{ st.cal.shift--; drawCal(); drawOverlay(); save() };
+$('octUp').onclick=()=>{ st.cal.shift++; drawCal(); drawOverlay(); save() };
+$('sat').oninput=e=>{ st.cal.sat=+e.target.value; drawCal(); prevDet=detect(); drawOverlay(); save() };
 $('off').oninput=e=>{ st.cal.off=+e.target.value; drawCal(); stopSynth(); save() };
 function drawCal(){ const k=st.cal;
-  $('kLo').value=k.lo; $('kHi').value=k.hi; $('tol').value=k.tol; $('tolVal').textContent=k.tol+'°';
+  $('sat').value=k.sat; $('satVal').textContent=Math.round(k.sat*100)+' %';
+  $('octVal').textContent='Oktave '+(k.shift>0?'+':k.shift<0?'−':'±')+Math.abs(k.shift);
   $('off').value=k.off; $('offVal').textContent=(k.off>0?'+':'')+k.off+' ms';
-  $('swL').style.background=k.cL; $('swR').style.background=k.cR;
-  $('pickL').classList.toggle('on',pick==='L'); $('pickR').classList.toggle('on',pick==='R');
-  [...$('kPre').children].forEach(b=>{ const r=RANGES[b.dataset.n]; b.classList.toggle('on',r[0]===k.lo&&r[1]===k.hi) });
+  $('fitBtn').classList.toggle('on',!!k.lay);
 }
-function openSetup(){ if(!v.src) return flash('c','Erst ein Video laden'); setup=true; pick=null; v.pause(); stage.classList.add('setup');
-  $('calPanel').hidden=false; $('calBtn').classList.add('on'); $('calBtn').textContent='Einrichtung schließen'; applyZoom(); applyView(); prevDet=detect(); drawCal(); drawOverlay() }
-function closeSetup(){ setup=false; pick=null; dragH=null; stage.classList.remove('setup'); $('calPanel').hidden=true;
+function openSetup(){ if(!v.src) return flash('c','Erst ein Video laden'); setup=true; v.pause(); stage.classList.add('setup');
+  $('calPanel').hidden=false; $('calBtn').classList.add('on'); $('calBtn').textContent='Einrichtung schließen'; applyZoom(); applyView();
+  if(!st.cal.lay) tryFit(); else fitMsg='Tasten gespeichert';
+  prevDet=detect(); drawCal(); drawOverlay() }
+function closeSetup(){ setup=false; dragH=null; stage.classList.remove('setup'); $('calPanel').hidden=true;
   $('calBtn').classList.remove('on'); $('calBtn').textContent='Einrichten'; applyZoom(); applyView(); drawOverlay() }
 $('calBtn').onclick=()=> setup? closeSetup() : openSetup();
 
 function drawNoteInfo(){
+  $('swapH').hidden=!notes;
   if(!notes){ $('nInfo').textContent='Noch keine Noten ausgelesen. Tippe auf Einrichten.'; return }
   const nl=notes.filter(n=>n.h==='L').length;
-  $('nInfo').innerHTML=`<b>${notes.length} Noten</b> erkannt · links ${nl}, rechts ${notes.length-nl} · Tonart <b>${st.keyInfo.name}</b> (${st.keyInfo.sig})`;
+  const hm= st.handMode==='split' ? ' Nur eine Farbe gefunden, deshalb sind die Hände am mittleren C getrennt.' : '';
+  $('nInfo').innerHTML=`<b>${notes.length} Noten</b> erkannt · links ${nl}, rechts ${notes.length-nl} · Tonart <b>${st.keyInfo.name}</b> (${st.keyInfo.sig}).${hm}`;
 }
 
 /* Leinwände an die Bühne anpassen */
