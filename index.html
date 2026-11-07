@@ -13,7 +13,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
 <style>
-/* Layout: eine Bildschirm-App. Bühne oben (Video oder Notenansicht), darunter ein Bedienpult; Akzente in den Handfarben (links Bernstein, rechts Blau). Bewusst nur dunkel, wie ein Übungsraum mit gedimmtem Licht. */
+/* Layout B "Seitenschienen": Bühne in der Mitte, links Ansicht und Hände, rechts Tempo und Schleife, unten die Zeitleiste.
+   Alles Seltene liegt im Optionen-Fach. Akzente in den Handfarben (links Bernstein, rechts Blau). Bewusst nur dunkel. */
 :root{
   --bg:#0f1218; --panel:#171b24; --raise:#202634; --line:#2c3445;
   --fg:#e9ecf2; --mute:#8d97aa;
@@ -24,84 +25,109 @@
 html,body{height:100%}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;
-  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent;user-select:none}
 button,select{font:inherit;color:inherit;background:var(--raise);border:1px solid var(--line);border-radius:10px;
-  min-height:44px;padding:0 12px;cursor:pointer;touch-action:manipulation}
+  min-height:40px;padding:0 12px;cursor:pointer;touch-action:manipulation}
 button:disabled{opacity:.4;cursor:default}
 button:active:not(:disabled){transform:scale(.96)}
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--right);outline-offset:2px}
 button.on{background:var(--right);border-color:var(--right);color:#0b1220;font-weight:600}
 button.amber.on{background:var(--left);border-color:var(--left)}
-header{display:flex;align-items:center;gap:10px;padding-block:10px}
-header h1{font-family:var(--display);font-weight:600;font-size:1.25rem;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-header h1 small{font-family:var(--body);font-weight:400;font-size:.8rem;color:var(--mute);margin-left:8px}
-.wrap{flex:1;min-height:0;display:grid;grid-template-rows:minmax(200px,1fr) auto;gap:10px;padding-bottom:10px}
-.stage{position:relative;background:#000;border-radius:12px;overflow:hidden;min-height:180px;touch-action:manipulation}
+svg{display:block}
+
+.app{flex:1;min-height:0;display:flex;gap:8px;padding-block:8px}
+.rail{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:8px 6px;overflow-y:auto;scrollbar-width:none}
+.rail.left{width:60px}.rail.right{width:68px}
+.rail button{width:100%;min-height:36px;padding:0;font-size:.78rem;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none}
+.rail .hand{font-weight:600;font-size:.9rem;min-height:40px}
+#hR:not(.on){color:var(--right)} #hL:not(.on){color:var(--left)}
+.rl{font-size:.58rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);margin-top:4px}
+.grow{flex:1;min-height:4px}
+.pair{display:flex;gap:4px;width:100%}.pair button{flex:1;min-width:0}
+.speedval{font-family:var(--mono);font-size:.9rem!important;background:transparent!important;border-color:transparent!important}
+.center{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.stage{position:relative;flex:1;min-height:120px;background:#000;border-radius:12px;overflow:hidden;touch-action:manipulation}
 video{width:100%;height:100%;object-fit:contain;display:block;transform-origin:50% 85%;transition:transform .15s}
 video.ghost{opacity:0}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #ov{pointer-events:none;touch-action:none}
 .setup #ov{pointer-events:auto;cursor:crosshair}
-.flash{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:1.05rem;
+.songtag{position:absolute;top:8px;left:10px;right:110px;z-index:3;display:flex;gap:6px;align-items:center;pointer-events:none}
+.songtag #title{font-weight:600;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px #000;min-width:0}
+.keytag{flex:none;font-size:.68rem;font-weight:600;background:rgba(32,38,52,.9);border:1px solid var(--line);border-radius:10px;padding:1px 8px}
+.flash{position:absolute;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:1rem;
   background:rgba(0,0,0,.7);padding:10px 14px;border-radius:30px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:5}
 .flash.l{left:8%}.flash.r{right:8%}.flash.c{left:50%;transform:translate(-50%,-50%);white-space:nowrap}
 .flash.show{opacity:1;transition:none}
 .count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);
   font-size:5rem;color:var(--fg);background:rgba(0,0,0,.35);pointer-events:none;z-index:4}
-.badge{position:absolute;top:10px;left:10px;font-family:var(--mono);font-size:.8rem;background:rgba(0,0,0,.65);
-  padding:4px 10px;border-radius:20px;pointer-events:none;font-variant-numeric:tabular-nums;z-index:3}
-.empty,.scan{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-  padding:20px;text-align:center;background:var(--panel);z-index:6}
+.badge{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:.75rem;background:rgba(0,0,0,.65);
+  padding:3px 10px;border-radius:20px;pointer-events:none;font-variant-numeric:tabular-nums;z-index:3}
+.empty,.scan{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:16px;text-align:center;background:var(--panel);z-index:6}
 .scan{background:rgba(15,18,24,.88)}
 .empty p,.scan p{color:var(--mute);margin:0;max-width:36ch;line-height:1.5}
 .scan strong{font-family:var(--display);font-size:1.3rem;font-weight:600}
 .pbar{width:min(320px,80%);height:8px;background:var(--raise);border-radius:4px;overflow:hidden}
 .pbar div{height:100%;width:0;background:var(--right)}
-.keys{display:flex;height:70px;gap:2px;position:relative}
-.keys i{width:22px;background:#e9ecf2;border-radius:0 0 4px 4px}
+.keys{display:flex;height:60px;gap:2px;position:relative}
+.keys i{width:20px;background:#e9ecf2;border-radius:0 0 4px 4px}
 .keys i.hl{background:var(--right)} .keys i.hl2{background:var(--left)}
-.keys b{position:absolute;top:0;width:14px;height:42px;background:#0f1218;border-radius:0 0 3px 3px}
-.big{background:var(--right);color:#0b1220;border:none;font-weight:600;padding:0 22px;min-height:50px}
+.keys b{position:absolute;top:0;width:13px;height:36px;background:#0f1218;border-radius:0 0 3px 3px}
+.big{background:var(--right);color:#0b1220;border:none;font-weight:600;padding:0 22px;min-height:46px}
 .drag .empty{outline:2px dashed var(--right);outline-offset:-10px}
-.deck{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:12px;
-  max-height:58vh;overflow-y:auto;overscroll-behavior:contain}
-.deck.busy{pointer-events:none;opacity:.4}
-.time{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.85rem;color:var(--mute);font-variant-numeric:tabular-nums}
-.time .now{color:var(--fg)}
-.track{position:relative;height:40px;touch-action:none;cursor:pointer}
-.rail{position:absolute;left:0;right:0;top:16px;height:8px;background:var(--raise);border-radius:4px}
-.fill{position:absolute;left:0;top:16px;height:8px;background:var(--fg);border-radius:4px}
-.loopband{position:absolute;top:8px;height:24px;background:var(--loop);border-left:2px solid var(--right);border-right:2px solid var(--right)}
-.knob{position:absolute;top:10px;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:var(--fg);box-shadow:0 0 0 4px rgba(233,236,242,.15)}
-.mk{position:absolute;top:2px;width:2px;height:36px;background:var(--left);margin-left:-1px}
+.tbar{flex:none;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:2px 10px}
+.tbar .play{min-width:48px;min-height:36px;padding:0;font-size:1rem;background:var(--fg);color:#0b1220;border:none}
+.skip{flex:none;min-height:30px;font-size:.78rem;padding:0 10px;border-color:var(--right);color:var(--right);background:transparent}
+.tt{font-family:var(--mono);font-size:.72rem;color:var(--mute);font-variant-numeric:tabular-nums;flex:none}
+.tt.now{color:var(--fg)}
+.track{position:relative;height:36px;flex:1;min-width:0;touch-action:none;cursor:pointer}
+.rail-track{position:absolute;left:0;right:0;top:15px;height:6px;background:var(--raise);border-radius:3px}
+.fill{position:absolute;left:0;top:15px;height:6px;background:var(--fg);border-radius:3px}
+.loopband{position:absolute;top:8px;height:20px;background:var(--loop);border-left:2px solid var(--right);border-right:2px solid var(--right)}
+.knob{position:absolute;top:9px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--fg);box-shadow:0 0 0 4px rgba(233,236,242,.15)}
+.mk{position:absolute;top:4px;width:2px;height:28px;background:var(--left);margin-left:-1px}
+.busy .rail,.busy .tbar,.busy .calbar{pointer-events:none;opacity:.4}
+.calbar{flex:none;display:flex;flex-wrap:nowrap;gap:6px;align-items:center;background:var(--panel);border:1px solid var(--right);border-radius:12px;padding:6px 8px}
+.calbar button,.calbar select{min-height:34px;font-size:.82rem;flex:none;white-space:nowrap}
+.calbar span{flex:none;white-space:nowrap}
+.caltools{flex:1;min-width:0;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
+.caltools::-webkit-scrollbar{display:none}
+.calacts{flex:none;display:flex;gap:6px;align-items:center;padding-left:6px;border-left:1px solid var(--line)}
+.calbar input[type=range]{flex:none;width:110px;min-width:0;height:28px;accent-color:var(--right)}
+.calbar .sub{font-size:.75rem}
+
+/* Optionen-Fach */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:14}
+.drawer{position:fixed;top:0;bottom:0;right:0;width:min(400px,100%);z-index:15;background:var(--panel);border-left:1px solid var(--line);
+  overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;
+  padding-top:max(10px,env(safe-area-inset-top,0px));padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
+  padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+.dhead{display:flex;align-items:center;gap:10px;padding-bottom:6px}
+.dhead h2{font-family:var(--display);font-weight:600;font-size:1.2rem;margin:0;flex:1}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.row.center{justify-content:center}
-.lbl{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);width:72px;flex:none}
-.play{min-width:64px;font-size:1.2rem}
+.lbl{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);width:100%;flex:none}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.speedval{min-width:62px;text-align:center;font-family:var(--mono);font-size:1.1rem}
 .chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
 .chip{display:inline-flex;align-items:center;gap:4px;border-color:var(--left);color:var(--left);background:transparent;padding:0 4px 0 12px}
 .chip span{opacity:.6;font-family:var(--mono);font-size:.8rem}
 .chip .act{opacity:1;min-width:30px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px}
 .chip .act:hover{background:var(--raise)}
-.seg{display:inline-flex}
-.seg button{border-radius:0}.seg button:first-child{border-radius:10px 0 0 10px}.seg button:last-child{border-radius:0 10px 10px 0;margin-left:-1px}
 .sub{font-size:.85rem;color:var(--mute)}
 .info{font-size:.88rem;line-height:1.5}
 .info b{color:var(--good);font-weight:600}
-details{border-top:1px solid var(--line);padding-top:10px}
+details{border-top:1px solid var(--line);padding-top:8px;padding-bottom:6px}
 summary{cursor:pointer;font-family:var(--display);font-size:1.02rem;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:36px}
 summary::-webkit-details-marker{display:none}
 summary::after{content:"＋";color:var(--mute)} details[open] summary::after{content:"－"}
 .help{display:flex;flex-direction:column;gap:12px;margin-top:8px}
 ol.steps{margin:0;padding-left:20px;color:var(--mute);font-size:.88rem;line-height:1.55;display:flex;flex-direction:column;gap:4px}
 ol.steps b{color:var(--fg);font-weight:600}
-.sw{width:18px;height:18px;border-radius:5px;display:inline-block;border:1px solid rgba(255,255,255,.3);vertical-align:-4px}
 input[type=range]{flex:1;min-width:120px;accent-color:var(--right);height:32px}
 .ladder{font-family:var(--mono);font-size:.82rem;color:var(--good)}
-.hint{font-size:.78rem;color:var(--mute);line-height:1.6}
+.hint{font-size:.78rem;color:var(--mute);line-height:1.6;border-top:1px solid var(--line);padding-top:10px}
 .hint kbd{font-family:var(--mono);background:var(--raise);border:1px solid var(--line);border-radius:4px;padding:0 4px}
 /* Bibliothek */
 .lib{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;gap:10px;
@@ -115,194 +141,201 @@ input[type=range]{flex:1;min-width:120px;accent-color:var(--right);height:32px}
 .song .m{font-size:.82rem;color:var(--mute);margin-top:2px;line-height:1.4}
 .song .del.armed{background:#c4384b;border-color:#c4384b;color:#fff;font-weight:600}
 .libEmpty{color:var(--mute);line-height:1.5;max-width:40ch}
-@media (max-width:560px){ .lbl{width:100%} .hint{display:none} }
-@media (orientation:landscape) and (max-height:520px){
-  .wrap{grid-template-rows:none;grid-template-columns:minmax(0,1.4fr) minmax(300px,1fr)}
-  header{padding-block:4px} header h1{font-size:1rem} header h1 small{display:none} header button{min-height:36px}
-  .deck{max-height:none}
+.lib header{display:flex;align-items:center;gap:10px;padding-block:10px}
+.lib header h1{font-family:var(--display);font-weight:600;font-size:1.25rem;margin:0;flex:1}
+
+/* Hochformat: Schienen werden zu Leisten oben und unten */
+@media (orientation:portrait){
+  .app{flex-direction:column}
+  .rail{flex-direction:row;flex-wrap:wrap;width:auto!important;padding:6px;overflow:visible;justify-content:center}
+  .rail .rl,.rail .grow{display:none}
+  .rail button{width:auto;min-width:40px;padding:0 9px}
+  .rail .speedval{min-width:52px}
+  .pair{width:auto}
+  .rail.left{order:0}.center{order:1}.rail.right{order:2}
 }
+/* niedriges Querformat (Handy): Schienen kompakter, ohne Überschriften */
+@media (orientation:landscape) and (max-height:480px){
+  .rail{gap:4px;padding:6px 5px}
+  .rail .rl{display:none}
+  .rail button{min-height:32px}
+  .rail .hand{min-height:36px}
+  .app{padding-block:6px}
+}
+@media (max-width:560px){ .hint{display:none} }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important} button:active{transform:none!important} }
 </style>
 </head>
 <body>
 
 
-<header>
-  <h1 id="title">Übungsplayer<small>Klavier-Tutorials ohne Werbung</small></h1>
-  <button id="libBtn">Bibliothek</button>
-  <button id="openBtn">+ Video</button>
-  <input id="file" type="file" accept="video/*" hidden>
-</header>
+<div class="app" id="wrap">
+  <nav class="rail left" aria-label="Ansicht und Hände">
+    <button id="libBtn" aria-label="Bibliothek"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
+    <span class="rl">Ansicht</span>
+    <button id="vwVideo">Video</button>
+    <button id="vwNotes">Noten</button>
+    <span class="rl">Hände</span>
+    <button id="hL" class="hand amber" aria-label="Linke Hand">L</button>
+    <button id="hR" class="hand" aria-label="Rechte Hand">R</button>
+    <span class="rl">Zeigen</span>
+    <button id="tF" aria-label="Fingernummern">1–5</button>
+    <button id="tN" aria-label="Notennamen">C D</button>
+    <div class="grow"></div>
+    <button id="setBtn" aria-label="Optionen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h9M19 6h1M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></button>
+  </nav>
 
-<div class="wrap" id="wrap">
-  <div class="stage" id="stage">
-    <video id="v" playsinline preload="auto"></video>
-    <canvas id="nc" hidden></canvas>
-    <canvas id="ov"></canvas>
-    <div class="badge" id="badge" hidden></div>
-    <div class="count" id="count" hidden></div>
-    <div class="flash l" id="fl"></div><div class="flash r" id="fr"></div><div class="flash c" id="fc"></div>
-    <div class="scan" id="scan" hidden>
-      <strong>Noten werden ausgelesen</strong>
-      <div class="pbar"><div id="scanBar"></div></div>
-      <span class="mono sub" id="scanTxt">0 %</span>
-      <p>Lass die App offen und im Vordergrund, bis es fertig ist.</p>
-      <button id="scanStop">Abbrechen</button>
-    </div>
-    <div class="empty" id="empty">
-      <div class="keys" aria-hidden="true">
-        <i></i><i class="hl2"></i><i></i><i></i><i class="hl"></i><i></i><i></i>
-        <b style="left:16px"></b><b style="left:40px"></b><b style="left:88px"></b><b style="left:112px"></b><b style="left:136px"></b>
+  <div class="center">
+    <div class="calbar" id="calPanel" hidden>
+      <div class="caltools">
+      <button id="fitBtn">Tastatur suchen</button>
+      <select id="kMode" aria-label="Anzahl der Tasten">
+        <option value="auto">Tasten: automatisch</option>
+        <option value="88">88 Tasten</option>
+        <option value="76">76 Tasten</option>
+        <option value="61">61 Tasten</option>
+        <option value="49">49 Tasten</option>
+      </select>
+      <button id="octDn" class="mono" aria-label="Eine Oktave tiefer">−</button>
+      <span class="mono sub" id="octVal">Oktave ±0</span>
+      <button id="octUp" class="mono" aria-label="Eine Oktave höher">+</button>
+      <span class="sub">Empfindlichkeit</span>
+      <input id="sat" type="range" min="0.2" max="0.95" step="0.01" aria-label="Empfindlichkeit">
+      <span class="mono sub" id="satVal"></span>
+      <select id="scanRate" aria-label="Lesegeschwindigkeit">
+        <option value="1" selected>genau 1×</option>
+        <option value="2">schneller 2×</option>
+        <option value="4">grob 4×</option>
+      </select>
       </div>
-      <p>Lade ein Tutorial-Video von deinem Handy oder PC. Es bleibt auf deinem Gerät, nichts wird hochgeladen.</p>
-      <button class="big" id="openBig">Video auswählen</button>
-      <button id="libBig" hidden>Bibliothek öffnen</button>
-      <p style="font-size:.8rem">Doppeltipp links/rechts im Video springt 5 Sekunden.</p>
+      <div class="calacts">
+        <button id="scanGo" class="on">Noten auslesen</button>
+        <button id="calDone">Fertig</button>
+      </div>
     </div>
-  </div>
 
-  <div class="deck" id="deck">
-    <div>
-      <div class="time"><span class="now" id="tNow">0:00.0</span><span id="tLeft">0:00</span></div>
+    <div class="stage" id="stage">
+      <video id="v" playsinline preload="auto"></video>
+      <canvas id="nc" hidden></canvas>
+      <canvas id="ov"></canvas>
+      <div class="songtag"><span id="title">Übungsplayer</span><span class="keytag" id="keyTag" hidden></span></div>
+      <div class="badge" id="badge" hidden></div>
+      <div class="count" id="count" hidden></div>
+      <div class="flash l" id="fl"></div><div class="flash r" id="fr"></div><div class="flash c" id="fc"></div>
+      <div class="scan" id="scan" hidden>
+        <strong>Noten werden ausgelesen</strong>
+        <div class="pbar"><div id="scanBar"></div></div>
+        <span class="mono sub" id="scanTxt">0 %</span>
+        <p>Lass die App offen und im Vordergrund, bis es fertig ist.</p>
+        <button id="scanStop">Abbrechen</button>
+      </div>
+      <div class="empty" id="empty">
+        <div class="keys" aria-hidden="true">
+          <i></i><i class="hl2"></i><i></i><i></i><i class="hl"></i><i></i><i></i>
+          <b style="left:14px"></b><b style="left:36px"></b><b style="left:80px"></b><b style="left:102px"></b><b style="left:124px"></b>
+        </div>
+        <p>Lade ein Tutorial-Video von deinem Handy oder PC. Es bleibt auf deinem Gerät gespeichert.</p>
+        <button class="big" id="openBig">Video auswählen</button>
+        <button id="libBig" hidden>Bibliothek öffnen</button>
+      </div>
+    </div>
+
+    <div class="tbar">
+      <button id="bPlay" class="play" aria-label="Abspielen">▶</button>
+      <span class="tt now" id="tNow">0:00.0</span>
       <div class="track" id="track" role="slider" aria-label="Position" tabindex="0">
-        <div class="rail"></div><div class="loopband" id="band" hidden></div>
+        <div class="rail-track"></div><div class="loopband" id="band" hidden></div>
         <div class="fill" id="fill"></div><div id="marks"></div><div class="knob" id="knob"></div>
       </div>
+      <span class="tt" id="tLeft">0:00</span>
+      <button id="skipIntro" class="skip" hidden>Intro überspringen ›</button>
     </div>
+  </div>
 
-    <div class="row center">
-      <button id="bStart" aria-label="Zum Anfang">⏮</button>
-      <button id="b5" class="mono">−5</button>
-      <button id="b2" class="mono">−2</button>
-      <button id="bPlay" class="play" aria-label="Abspielen">▶</button>
-      <button id="f2" class="mono">+2</button>
-      <button id="f5" class="mono">+5</button>
+  <nav class="rail right" aria-label="Tempo und Schleife">
+    <span class="rl">Tempo</span>
+    <button id="sUp" class="mono" aria-label="Schneller">+</button>
+    <button id="sVal" class="speedval" aria-label="Tempo-Stufe wechseln">100%</button>
+    <button id="sDown" class="mono" aria-label="Langsamer">−</button>
+    <span class="rl">Schleife</span>
+    <div class="pair"><button id="lA" class="mono">A</button><button id="lB" class="mono">B</button></div>
+    <button id="lOn" aria-label="Schleife wiederholen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a6 6 0 0 1 6-6h9l-3-3M20 12a6 6 0 0 1-6 6H5l3 3"/></svg></button>
+    <div class="grow"></div>
+    <div class="pair"><button id="b5" class="mono">−5</button><button id="f5" class="mono">+5</button></div>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Optionen">
+  <div class="dhead"><h2>Optionen</h2><button id="openBtn">+ Video</button><button id="setClose">Schließen</button></div>
+
+  <details open>
+    <summary>Wiedergabe</summary>
+    <div class="help">
+      <div class="row"><span class="lbl">Ton</span>
+        <select id="snd" aria-label="Tonquelle"><option value="video">Video-Ton</option><option value="synth">Klavier aus den Noten</option><option value="off">Aus</option></select>
+        <span class="sub" id="sndHint"></span></div>
+      <div class="row"><span class="lbl">Tempo-Stufen</span><div class="chips" id="sChips"></div></div>
+      <div class="row"><span class="lbl">Springen</span>
+        <button id="bStart" aria-label="Zum Anfang">⏮</button>
+        <button id="b2" class="mono">−2 s</button><button id="f2" class="mono">+2 s</button>
+        <button id="st1" class="mono">‹ 0,1 s</button><button id="st2" class="mono">0,1 s ›</button></div>
     </div>
+  </details>
 
-    <div class="row">
-      <span class="lbl">Ansicht</span>
-      <div class="seg"><button id="vwVideo">Video</button><button id="vwNotes">Noten</button></div>
-      <button id="hL" class="amber">Links</button>
-      <button id="hR">Rechts</button>
-      <button id="tF">Finger</button>
-      <button id="tN">Namen</button>
+  <details>
+    <summary>Schleife und Lernhilfen</summary>
+    <div class="help">
+      <div class="row"><span class="lbl">Schleife</span><span class="mono sub" id="lInfo"></span><button id="lClr">Löschen</button></div>
+      <div class="row"><span class="lbl">Tempo-Leiter</span>
+        <button id="ldOn">Aus</button>
+        <select id="ldStep" aria-label="Schrittweite"><option value="5">+5 %</option><option value="10">+10 %</option></select>
+        <select id="ldEvery" aria-label="Nach Wiederholungen"><option value="1">jede Runde</option><option value="2" selected>alle 2 Runden</option><option value="3">alle 3 Runden</option></select>
+        <span class="ladder" id="ldInfo"></span></div>
+      <div class="row"><span class="lbl">Pause vor jeder Runde</span><div class="chips" id="gapChips"></div></div>
     </div>
+  </details>
 
-    <div class="row">
-      <span class="lbl">Ton</span>
-      <select id="snd" aria-label="Tonquelle">
-        <option value="video">Video-Ton</option>
-        <option value="synth">Klavier aus den Noten</option>
-        <option value="off">Aus</option>
-      </select>
-      <span class="sub" id="sndHint"></span>
-    </div>
-
-    <div class="row">
-      <span class="lbl">Tempo</span>
-      <button id="sDown" class="mono" aria-label="Langsamer">−</button>
-      <span class="speedval" id="sVal">100%</span>
-      <button id="sUp" class="mono" aria-label="Schneller">+</button>
-      <div class="chips" id="sChips"></div>
-    </div>
-
-    <div class="row">
-      <span class="lbl">Schleife</span>
-      <button id="lA" class="mono">A</button>
-      <button id="lB" class="mono">B</button>
-      <button id="lOn">Wiederholen</button>
-      <button id="lClr">Löschen</button>
-      <span class="mono sub" id="lInfo"></span>
-    </div>
-
-    <div class="row">
-      <span class="lbl">Abschnitte</span>
-      <button id="mAdd" class="amber">+ Marker hier</button>
+  <details>
+    <summary>Abschnitte</summary>
+    <div class="help">
+      <div class="row"><button id="mAdd" class="amber">+ Marker an aktueller Stelle</button></div>
       <div class="chips" id="mList"></div>
     </div>
+  </details>
 
-    <details id="scanBox" open>
-      <summary>Noten aus dem Video</summary>
-      <div class="help">
-        <div class="info" id="nInfo">Noch keine Noten ausgelesen.</div>
-        <div class="row"><button id="calBtn">Einrichten</button><button id="swapH" hidden>Hände tauschen</button><span class="sub" id="calSub">einmal pro Video</span></div>
-        <div id="calPanel" class="help" hidden>
-          <ol class="steps">
-            <li><b>Pausiere</b> an einer Stelle, an der möglichst wenige Tasten gedrückt sind, zum Beispiel ganz am Anfang.</li>
-            <li>Ziehe die <b>obere Linie</b> durch die schwarzen Tasten und die <b>untere Linie</b> durch die weißen Tasten unterhalb der schwarzen.</li>
-            <li>Die App erkennt die Tasten selbst. Prüfe, ob die Striche auf den Tasten sitzen und die C-Tasten richtig beschriftet sind. Stimmt die Oktave nicht, korrigiere sie mit − und +.</li>
-            <li>Spiel kurz ab: Gedrückte Tasten bekommen einen Punkt in ihrer Farbe. Fehlen Punkte, senke die Farbschwelle.</li>
-          </ol>
-          <div class="row">
-            <span class="lbl">Tasten</span>
-            <button id="fitBtn">Tasten erkennen</button>
-            <button id="octDn" class="mono" aria-label="Eine Oktave tiefer">−</button>
-            <span class="mono sub" id="octVal">Oktave ±0</span>
-            <button id="octUp" class="mono" aria-label="Eine Oktave höher">+</button>
-          </div>
-          <div class="row">
-            <span class="lbl">Farbschwelle</span>
-            <input id="sat" type="range" min="0.12" max="0.7" step="0.01" aria-label="Farbschwelle">
-            <span class="mono sub" id="satVal"></span>
-          </div>
-          <div class="row">
-            <span class="lbl">Auslesen</span>
-            <select id="scanRate" aria-label="Lesegeschwindigkeit">
-              <option value="1">genau (1×)</option>
-              <option value="2" selected>normal (2×)</option>
-              <option value="4">schnell (4×)</option>
-            </select>
-            <button id="scanGo" class="on">Noten auslesen</button>
-          </div>
-        </div>
-        <div class="row">
-          <span class="lbl">Versatz</span>
-          <input id="off" type="range" min="-400" max="400" step="10" aria-label="Zeitversatz der Noten">
-          <span class="mono sub" id="offVal"></span>
-        </div>
-      </div>
-    </details>
+  <details id="scanBox">
+    <summary>Noten aus dem Video</summary>
+    <div class="help">
+      <div class="info" id="nInfo">Noch keine Noten ausgelesen.</div>
+      <ol class="steps">
+        <li>An einer Stelle <b>pausieren</b>, an der kaum Tasten gedrückt sind.</li>
+        <li><b>Einrichten</b> tippen. Die App legt einen <b>Rahmen um die Tastatur</b>. Passt er nicht, an den Ecken ziehen oder einen neuen Rahmen aufziehen.</li>
+        <li>Die eingeblendete Tastatur muss auf den echten Tasten liegen und die C-Tasten richtig beschriftet sein. Dann <b>Noten auslesen</b>.</li>
+      </ol>
+      <div class="row"><button id="calBtn">Einrichten</button><button id="swapH" hidden>Hände tauschen</button></div>
+      <div class="row"><span class="lbl">Versatz der Noten</span>
+        <input id="off" type="range" min="-400" max="400" step="10" aria-label="Zeitversatz der Noten">
+        <span class="mono sub" id="offVal"></span></div>
+    </div>
+  </details>
 
-    <details id="more">
-      <summary>Lernhilfen</summary>
-      <div class="help">
-        <div class="row">
-          <span class="lbl">Tempo-Leiter</span>
-          <button id="ldOn">Aus</button>
-          <select id="ldStep" aria-label="Schrittweite"><option value="5">+5 %</option><option value="10">+10 %</option></select>
-          <select id="ldEvery" aria-label="Nach Wiederholungen"><option value="1">nach jeder Runde</option><option value="2" selected>alle 2 Runden</option><option value="3">alle 3 Runden</option></select>
-          <span class="ladder" id="ldInfo"></span>
-        </div>
-        <div class="row">
-          <span class="lbl">Pause vor Runde</span>
-          <div class="chips" id="gapChips"></div>
-        </div>
-        <div class="row">
-          <span class="lbl">Feinschritt</span>
-          <button id="st1" class="mono">‹ 0,1 s</button>
-          <button id="st2" class="mono">0,1 s ›</button>
-        </div>
-        <div class="row">
-          <span class="lbl">Zoom Video</span>
-          <input id="zoom" type="range" min="1" max="3" step="0.05" value="1" aria-label="Zoom">
-          <span class="mono sub" id="zVal">1,0×</span>
-        </div>
-        <div class="row">
-          <span class="lbl">Zoom Höhe</span>
-          <input id="zoomY" type="range" min="0" max="100" step="1" value="85" aria-label="Zoom-Ausschnitt oben bis unten">
-          <button id="zReset">Zurücksetzen</button>
-        </div>
-        <div class="row">
-          <span class="lbl">Geübt</span>
-          <span class="mono" id="prac">–</span>
-          <button id="pReset">Zähler zurücksetzen</button>
-        </div>
-      </div>
-    </details>
+  <details id="more">
+    <summary>Video und Übungszeit</summary>
+    <div class="help">
+      <div class="row"><span class="lbl">Zoom</span>
+        <input id="zoom" type="range" min="1" max="3" step="0.05" value="1" aria-label="Zoom">
+        <span class="mono sub" id="zVal">1,0×</span></div>
+      <div class="row"><span class="lbl">Zoom-Ausschnitt</span>
+        <input id="zoomY" type="range" min="0" max="100" step="1" value="85" aria-label="Zoom-Ausschnitt oben bis unten">
+        <button id="zReset">Zurücksetzen</button></div>
+      <div class="row"><span class="lbl">Geübt</span><span class="mono" id="prac">–</span><button id="pReset">Zähler zurücksetzen</button></div>
+    </div>
+  </details>
 
-    <div class="hint">Tastatur: <kbd>Leertaste</kbd> Play · <kbd>←</kbd><kbd>→</kbd> 2 s · <kbd>Shift</kbd>+Pfeil 5 s · <kbd>,</kbd><kbd>.</kbd> 0,1 s · <kbd>↑</kbd><kbd>↓</kbd> Tempo · <kbd>1</kbd>–<kbd>5</kbd> 50–100 % · <kbd>A</kbd> <kbd>B</kbd> <kbd>L</kbd> Schleife · <kbd>M</kbd> Marker · <kbd>V</kbd> Ansicht · <kbd>T</kbd> Ton</div>
-  </div>
-</div>
+  <div class="hint">Tastatur: <kbd>Leertaste</kbd> Play · <kbd>←</kbd><kbd>→</kbd> 2 s · <kbd>Shift</kbd>+Pfeil 5 s · <kbd>,</kbd><kbd>.</kbd> 0,1 s · <kbd>↑</kbd><kbd>↓</kbd> Tempo · <kbd>1</kbd>–<kbd>5</kbd> 50–100 % · <kbd>A</kbd> <kbd>B</kbd> <kbd>L</kbd> Schleife · <kbd>M</kbd> Marker · <kbd>V</kbd> Ansicht · <kbd>T</kbd> Ton · <kbd>O</kbd> Optionen</div>
+</aside>
+<input id="file" type="file" accept="video/*" hidden>
 
 <div class="lib" id="lib" hidden>
   <header><h1>Bibliothek</h1><button id="libAdd">+ Video</button><button id="libClose">Schließen</button></header>
@@ -322,18 +355,18 @@ const NS=['C','Cis','D','Dis','E','F','Fis','G','Gis','A','Ais','H'], NF=['C','D
 const nname=p=>(st.keyInfo&&st.keyInfo.flats?NF:NS)[p%12];
 const COL={L:'#f2b23a',LD:'#c7861a',R:'#4a9cf0',RD:'#2a6fc0',bg:'#0f1218',grid:'rgba(233,236,242,.06)',white:'#eef0f4',black:'#161a22',felt:'#8a2433',mute:'#8d97aa'};
 
-let key=null, st=fresh(), notes=null, reps=0, waiting=false, setup=false, scanning=false, aborted=false, prevDet=new Map(), dragH=null, fitMsg='';
+let key=null, st=fresh(), notes=null, reps=0, waiting=false, setup=false, scanning=false, aborted=false, prevDet=new Map(), prevBars=new Map(), dragH=null, fitMsg='';
 function fresh(){return {a:null,b:null,loop:false,marks:[],speed:100,pos:0,ladder:false,ldStep:5,ldEvery:2,gap:0,zoom:1,zoomY:85,total:0,days:{},
   sound:'video',view:'video',hands:{L:true,R:true},showF:true,showN:false,notes:null,keyInfo:null,
   range:null,handMode:null,
-  cal:{ya:.66,yb:.86,xl:0,xr:1,sat:.35,shift:0,off:0,lay:null}}}
+  cal:{ya:.66,yb:.86,xl:0,xr:1,box:null,mode:'auto',sens:.6,sat:.35,shift:0,off:0,lay:null}}}
 
 /* Speicher pro Video (Name + Größe), nur auf diesem Gerät */
 function save(){ if(!key) return; st.pos=v.currentTime||0; try{localStorage.setItem('kp:'+key,JSON.stringify(st))}catch(e){} }
 function load(k){ const f=fresh(); try{const s=JSON.parse(localStorage.getItem('kp:'+k)); if(s){ const r=Object.assign(f,s);
   r.cal=Object.assign(fresh().cal,s.cal&&('ya' in s.cal)?s.cal:{}); r.hands=Object.assign({L:true,R:true},s.hands||{}); if(s.muted&&!s.sound) r.sound='off'; return r }}catch(e){} return f }
 function pack(){ return notes? notes.map(n=>[n.p,+n.s.toFixed(3),+n.e.toFixed(3),n.h==='L'?0:1,n.f||0]) : null }
-function unpack(){ notes= st.notes&&st.notes.length? st.notes.map(a=>({p:a[0],s:a[1],e:a[2],h:a[3]?'R':'L',f:a[4]||0})).sort((a,b)=>a.s-b.s) : null }
+function unpack(){ notes= st.notes&&st.notes.length? st.notes.map(a=>({p:a[0],s:a[1],e:a[2],h:a[3]?'R':'L',f:a[4]||0})).sort((a,b)=>a.s-b.s) : null; if(notes) st.keyInfo=detectKey(notes) }
 
 function fmt(t,dec){ if(!isFinite(t)) t=0; const m=Math.floor(t/60), s=t-m*60;
   return m+':'+(dec? s.toFixed(1).padStart(4,'0') : String(Math.floor(s)).padStart(2,'0')) }
@@ -389,7 +422,7 @@ async function storeVideo(f,k){
     try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist() }catch(e){}
     const l=libGet().filter(x=>x.key!==k); l.unshift({key:k,name:f.name.replace(/\.[^.]+$/,''),size:f.size,type:f.type||guessType(f.name),last:Date.now()}); libSet(l);
     flash('c','In der Bibliothek gespeichert'); updateEmpty();
-  }catch(e){ flash('c','Nicht gespeichert: Gerätespeicher voll?') }
+  }catch(e){ flash('c','Konnte nicht in der Bibliothek gespeichert werden') }
 }
 function touchLib(k){ const l=libGet(), i=l.findIndex(x=>x.key===k); if(i<0) return; const [x]=l.splice(i,1); x.last=Date.now(); l.unshift(x); libSet(l) }
 async function openFromLib(k){
@@ -448,7 +481,8 @@ $('bPlay').onclick=toggle;
 function seek(t){ if(!v.duration) return; v.currentTime=Math.max(0,Math.min(v.duration-0.05,t)); drawTime() }
 function jump(d){ seek(v.currentTime+d); flash(d<0?'l':'r',(d>0?'+':'−')+String(Math.abs(d)).replace('.',',')+' s') }
 function step(d){ if(!v.paused) v.pause(); seek(v.currentTime+d) }
-$('bStart').onclick=()=>seek(st.loop&&st.a!=null?st.a:0);
+$('bStart').onclick=()=>seek(st.loop&&st.a!=null?st.a:firstNote());
+$('skipIntro').onclick=()=>{ seek(firstNote()); flash('c','Zur ersten Note') };
 $('b5').onclick=()=>jump(-5); $('b2').onclick=()=>jump(-2); $('f2').onclick=()=>jump(2); $('f5').onclick=()=>jump(5);
 $('st1').onclick=()=>step(-0.1); $('st2').onclick=()=>step(0.1);
 
@@ -549,7 +583,9 @@ function drawPrac(){ $('prac').textContent= key ? 'heute '+dur(st.days[today()]|
 $('pReset').onclick=()=>{ st.total=0; st.days={}; drawPrac(); save() };
 
 /* Zeitleiste ziehen */
+const firstNote=()=> notes&&notes.length ? Math.max(0,notes[0].s+st.cal.off/1000-1.5) : 0;
 function drawTime(){ const d=v.duration||0, p=d? v.currentTime/d*100:0;
+  const sk=$('skipIntro'), fn=firstNote(), show=fn>2&&v.currentTime<fn-.3&&!setup&&!scanning; if(sk.hidden===show) sk.hidden=!show;
   $('fill').style.width=p+'%'; $('knob').style.left=p+'%';
   $('tNow').textContent=fmt(v.currentTime,1); $('tLeft').textContent=d? '−'+fmt(d-v.currentTime):'0:00' }
 let dragging=false, wasPlaying=false;
@@ -626,36 +662,39 @@ function px(d,i){ const r=d[i],g=d[i+1],b=d[i+2], mx=Math.max(r,g,b), mn=Math.mi
   return {v:mx/255, s:mx?dd/mx:0, h, l:(0.299*r+0.587*g+0.114*b)/255} }
 /* Tastatur aus zwei Pixelzeilen erkennen: A läuft durch die schwarzen Tasten, B nur durch die weißen */
 function fitLayout(rowA,rowB,w){
-  // Ausdehnung der Tastatur über die helle Zeile B
+  // 1. Ausdehnung der Tastatur über die helle Zeile B
   const keyish=x=>{ const p=px(rowB,x*4); return p.l>.45||(p.s>.3&&p.v>.3) };
   let kx0=0; while(kx0<w&&!keyish(kx0)) kx0++;
   let kx1=w-1; while(kx1>kx0&&!keyish(kx1)) kx1--;
-  if(kx1-kx0<w*.2) return {err:'Die untere Linie liegt nicht auf den weißen Tasten.'};
-  // schwarze Tasten = dunkle, graue Abschnitte in Zeile A
-  const dark=x=>{ const p=px(rowA,x*4); return p.l<.3&&p.s<.4 };
+  const span=kx1-kx0+1;
+  if(span<w*.2) return {err:'Im Rahmen ist keine Tastatur zu sehen. Rahmen enger um die Tasten ziehen.'};
+  // 2. schwarze Tasten = dunkle, graue Abschnitte in Zeile A
+  const dark=x=>{ const p=px(rowA,x*4); return p.l<.35&&p.s<.45 };
   const runs=[]; let x=kx0;
   while(x<=kx1){ if(!dark(x)){x++;continue} let e=x; while(e+1<=kx1&&dark(e+1)) e++; if(e-x+1>=2&&x>kx0&&e<kx1) runs.push([x,e]); x=e+1 }
-  if(runs.length<4) return {err:'Zu wenige schwarze Tasten gefunden. Die obere Linie muss durch die schwarzen Tasten laufen.'};
+  if(runs.length<4) return {err:'Zu wenige schwarze Tasten im Rahmen gefunden.'};
   const ws=runs.map(r=>r[1]-r[0]+1).sort((a,b)=>a-b), mw=ws[ws.length>>1];
-  const bl=runs.filter(r=>{const q=r[1]-r[0]+1; return q>=mw*.5&&q<=mw*1.8}).map(r=>(r[0]+r[1])/2);
+  const bl=runs.filter(r=>{const q=r[1]-r[0]+1; return q>=mw*.5&&q<=mw*1.7}).map(r=>(r[0]+r[1])/2);
   if(bl.length<4) return {err:'Die schwarzen Tasten sind nicht eindeutig.'};
+  // 3. Tastenbreite aus den Abständen der schwarzen Tasten (robust: unteres Viertel als Startwert)
   const ds=[]; for(let i=1;i<bl.length;i++) ds.push(bl[i]-bl[i-1]);
-  const minD=Math.min(...ds);
-  let bestW=minD,bc=1e9;
-  for(let W=minD*.8;W<=minD*1.25;W+=.05){ let c=0; for(const d of ds){ const r=d/W-Math.round(d/W); c+=r*r } if(c<bc){bc=c;bestW=W} }
-  const m=[0]; for(let i=0;i<ds.length;i++) m.push(m[i]+Math.max(1,Math.round(ds[i]/bestW)));
-  // Feinanpassung a + m*W per kleinster Quadrate
-  const n=bl.length, sm=m.reduce((s,v)=>s+v,0), sc=bl.reduce((s,v)=>s+v,0), smm=m.reduce((s,v)=>s+v*v,0), smc=m.reduce((s,v,i)=>s+v*bl[i],0);
-  const W=(n*smc-sm*sc)/(n*smm-sm*sm), a=(sc-W*sm)/n;
-  // welche Lücken (E-F, H-C) passen zum Muster?
-  const has=new Set(m); let bo=0,bs=-1e9;
-  for(let o=0;o<7;o++){ let s=0; for(const j of has){ const L=((j+o)%7+7)%7; s+= [0,1,3,4,5].includes(L)?1:-3 } if(s>bs){bs=s;bo=o} }
+  const dsS=ds.slice().sort((a,b)=>a-b), q=dsS[Math.floor(dsS.length*.25)];
+  let W0=q,bc=1e9; for(let W=q*.7;W<=q*1.35;W+=.02){ let c=0; for(const d of ds){ const k=Math.max(1,Math.round(d/W)), r=d/W-k; c+=r*r } if(c<bc){bc=c;W0=W} }
+  // 4. jeder schwarzen Taste ihre Grenze zuordnen und Lage + Breite per Ausgleichsgerade bestimmen (auch bei angeschnittener Tastatur)
+  const m=[0]; for(let i=0;i<ds.length;i++) m.push(m[i]+Math.max(1,Math.round(ds[i]/W0)));
+  const nn=bl.length, sm=m.reduce((t,x)=>t+x,0), sc=bl.reduce((t,x)=>t+x,0), smm=m.reduce((t,x)=>t+x*x,0), smc=m.reduce((t,x,i)=>t+x*bl[i],0);
+  const W=(nn*smc-sm*sc)/(nn*smm-sm*sm), a=(sc-W*sm)/nn;
+  if(!(W>2)) return {err:'Tastenbreite nicht bestimmbar.'};
   const j0=Math.ceil((kx0-a)/W+.5), j1=Math.floor((kx1-a)/W+.5);
   if(j1-j0<6) return {err:'Zu wenige weiße Tasten erkannt.'};
-  // Oktave: mittlere weiße Taste möglichst nah an E4/F4 (Mitte eines 88er-Klaviers)
-  const jm=Math.round((j0+j1)/2); let ob=0,bd=1e9;
+  // 5. an welchen Grenzen sitzt eine schwarze Taste? daraus die Buchstaben (E-F und H-C haben keine)
+  const has={}; for(let jj=j0;jj<j1;jj++){ const bx=a+jj*W; has[jj]=bl.some(c=>Math.abs(c-bx)<W*.3) }
+  let bo=0,bs=-1e9;
+  for(let o=0;o<7;o++){ let scr=0; for(let jj=j0;jj<j1;jj++){ const L=((jj+o)%7+7)%7, want=[0,1,3,4,5].includes(L); scr+= want===has[jj]?1:-1 } if(scr>bs){bs=scr;bo=o} }
+  let ob=0,bd=1e9; const jm=Math.round((j0+j1)/2);
   for(let k=-2;k<=8;k++){ const p=wp(jm,{o:bo,ob:k}); const d=Math.abs(p-64.5); if(d<bd){bd=d;ob=k} }
-  return {a,W,j0,j1,o:bo,ob,kx0,kx1,score:bs,n:bl.length};
+  const n=j1-j0+1;
+  return {a,W,j0,j1,o:bo,ob,kx0,kx1,score:bs/(n-1),n:bl.length};
 }
 /* Tonhöhe der weißen Taste j: weiße Taste j liegt zwischen den Grenzen a+(j-1)W und a+jW */
 function wp(j,l){ const t=j+l.o, L=((t%7)+7)%7, oc=Math.floor(t/7)+l.ob; return 12*(oc+1)+WHITE_PC[L] }
@@ -699,48 +738,253 @@ function grab(){
   const d=dctx.getImageData(0,0,w,6).data;
   return {w,sx,vw,A:d.subarray(0,w*12),B:d.subarray(w*12,w*24)};
 }
+/* Rahmen (normiert 0..1) bestimmt die beiden Lesezeilen: oben durch die schwarzen, unten durch die weißen Tasten */
+function syncLines(){ const b=st.cal.box; if(!b) return; const h=b.y1-b.y0;
+  st.cal.xl=b.x0; st.cal.xr=b.x1; st.cal.ya=b.y0+h*.3; st.cal.yb=b.y0+h*.86 }
+const MANUAL={88:[52,21],76:[45,28],61:[36,36],49:[29,36]};   // weiße Tasten, tiefste Taste
 function tryFit(){
+  syncLines();
   const g=grab(); if(!g){ fitMsg='Video noch nicht bereit'; return false }
+  const c=st.cal;
+  if(c.mode!=='auto'&&MANUAL[c.mode]){
+    const [n,low]=MANUAL[c.mode], W=g.w/n, L=[0,2,4,5,7,9,11].indexOf(low%12), o=((L-1)%7+7)%7;
+    let ob=0; for(let k=-3;k<=9;k++) if(wp(1,{o,ob:k})===low){ ob=k; break }
+    c.lay={a:g.sx/g.vw,W:W/g.vw,j0:1,j1:n,o,ob}; fitMsg=c.mode+' Tasten am Rahmen ausgerichtet'; drawCal(); save(); return true;
+  }
   const l=fitLayout(g.A.subarray(g.w*4,g.w*8),g.B.subarray(g.w*4,g.w*8),g.w);
-  if(l.err){ st.cal.lay=null; fitMsg=l.err; drawCal(); drawOverlay(); return false }
-  st.cal.lay={a:(l.a+g.sx)/g.vw,W:l.W/g.vw,j0:l.j0,j1:l.j1,o:l.o,ob:l.ob};
+  if(l.err){ c.lay=null; fitMsg=l.err; drawCal(); return false }
+  c.lay={a:(l.a+g.sx)/g.vw,W:l.W/g.vw,j0:l.j0,j1:l.j1,o:l.o,ob:l.ob};
   fitMsg=(l.j1-l.j0+1)+' weiße Tasten erkannt'; drawCal(); save(); return true;
+}
+/* Tastatur im Bild suchen: Zeilen mit vielen Hell-Dunkel-Wechseln sind die schwarzen Tasten, darunter folgt der helle Teil */
+const bc=document.createElement('canvas'), bctx=bc.getContext('2d',{willReadFrequently:true});
+function findBox(){
+  const vw=v.videoWidth, vh=v.videoHeight; if(!vw||v.readyState<2) return null;
+  const W=320, H=Math.max(40,Math.round(vh*W/vw)); bc.width=W; bc.height=H; bctx.drawImage(v,0,0,W,H);
+  const d=bctx.getImageData(0,0,W,H).data, lum=(x,y)=>{ const i=(y*W+x)*4; return (.299*d[i]+.587*d[i+1]+.114*d[i+2])/255 };
+  const rows=[];
+  for(let y=0;y<H;y++){ let br=0,tr=0,st0=-1; for(let x=0;x<W;x++){ const l=lum(x,y); if(l>.6) br++; const s1=l<.3?0:l>.6?1:-1; if(s1>=0){ if(st0>=0&&s1!==st0) tr++; st0=s1 } } rows.push({br:br/W,tr}) }
+  const isB=r=>r.tr>=12&&r.br>.2;
+  let best=null, cur=null, gap=0;
+  for(let y=0;y<H;y++){ if(isB(rows[y])){ if(!cur) cur={t:y,e:y}; cur.e=y; gap=0 } else if(cur&&++gap>2){ if(!best||cur.e-cur.t>best.e-best.t) best=cur; cur=null; gap=0 } }
+  if(cur&&(!best||cur.e-cur.t>best.e-best.t)) best=cur;
+  if(!best||best.e-best.t<3) return null;
+  let b=best.e; while(b+1<H&&rows[b+1].br>.45) b++;
+  if(b-best.e<2) b=Math.min(H-1,best.e+Math.round((best.e-best.t)*.6));
+  const ym=Math.round((best.e+b)/2); let x0=0,x1=W-1; while(x0<W&&lum(x0,ym)<.5) x0++; while(x1>x0&&lum(x1,ym)<.5) x1--;
+  if(x1-x0<W*.25) { x0=0; x1=W-1 }
+  return {x0:x0/W,x1:(x1+1)/W,y0:best.t/H,y1:(b+1)/H};
 }
 function curKeys(g){ const L=st.cal.lay; if(!L) return null;
   return keysOf({a:L.a*g.vw-g.sx,W:L.W*g.vw,j0:L.j0,j1:L.j1,o:L.o,ob:L.ob},st.cal.shift) }
-function detect(){ const g=grab(); if(!g) return new Map(); const ks=curKeys(g); if(!ks) return new Map();
-  return readKeys(g.A,g.B,g.w,ks,st.cal.sat) }
+
+/* ---------- Auslese-Engine ----------
+   Pro Taste werden mehrere Höhen auf der Taste abgetastet (erkennt auch nur oben oder blass leuchtende Tasten)
+   und zwei Zeilen darüber, durch die die fallenden Balken laufen (erkennt Videos ohne leuchtende Tasten).
+   Als Vergleich dient, wie jede Stelle normalerweise aussieht (Median über das ganze Video). */
+const NR=12;
+function hueRGB(r,g,b){ const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn; if(!d) return -1;
+  let h; if(mx===r) h=((g-b)/d)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; return h<0?h+360:h }
+function makeSampler(){
+  const vw=v.videoWidth, vh=v.videoHeight, c=st.cal, b=c.box, L=c.lay; if(!vw||!b||!L) return null;
+  const X0=Math.max(0,Math.floor(b.x0*vw)), X1=Math.min(vw,Math.ceil(b.x1*vw)), Y0=Math.max(0,Math.round(b.y0*vh)), Y1=Math.min(vh,Math.round(b.y1*vh));
+  const kh=Y1-Y0; if(X1-X0<20||kh<6) return null;
+  const CW=Math.min(720,X1-X0), sc=CW/(X1-X0), P=NR+4;
+  const r1=Math.max(3,Math.round(Y0-Math.max(8,kh*.4))), dy=Math.max(2,Math.round(kh*.035)), r2=Math.max(0,Math.round(Y0-Math.max(18,kh*.95)));
+  const ks=keysOf({a:(L.a*vw-X0)*sc,W:L.W*vw*sc,j0:L.j0,j1:L.j1,o:L.o,ob:L.ob},c.shift);
+  const Wc=L.W*vw*sc, whites=[]; ks.forEach((k,ki)=>{ if(!k.black) whites.push(ki) });
+  // oberste Reihe auslassen: dort liegen Funken und Glühen der auftreffenden Balken
+  ks.forEach(k=>{ k.rows=[]; for(let i=0;i<NR;i++){ const f=(i+.5)/NR; if(f>.12&&(!k.black||f<.55)) k.rows.push(i) }
+    const r=Math.max(.6,k.r*sc); k.xa=Math.max(0,Math.round(k.c-r)); k.xb=Math.min(CW-1,Math.round(k.c+r)) });
+  const read=()=>{
+    if(dc.width!==CW||dc.height!==P){ dc.width=CW; dc.height=P }
+    dctx.drawImage(v,X0,Y0,X1-X0,kh,0,0,CW,NR);
+    dctx.drawImage(v,X0,Math.max(0,r1-dy),X1-X0,1,0,NR,CW,1);
+    dctx.drawImage(v,X0,r1,X1-X0,1,0,NR+1,CW,1);
+    dctx.drawImage(v,X0,Math.min(Y0-1,r1+dy),X1-X0,1,0,NR+2,CW,1);
+    dctx.drawImage(v,X0,r2,X1-X0,1,0,NR+3,CW,1);
+    const d=dctx.getImageData(0,0,CW,P).data, out=new Uint8Array(ks.length*P*3);
+    ks.forEach((k,ki)=>{ for(const row of k.rows){ let R=0,G=0,B=0,n=0;
+      for(let x=k.xa;x<=k.xb;x++){ const i=(row*CW+x)*4; R+=d[i]; G+=d[i+1]; B+=d[i+2]; n++ }
+      const o=(ki*P+row)*3; out[o]=R/n; out[o+1]=G/n; out[o+2]=B/n } });
+    // Balkenzeilen: farbige Abschnitte nach Mitte und Breite genau einer Taste zuordnen (kein Übersprechen auf Nachbartasten)
+    for(const row of [NR,NR+1,NR+2,NR+3]){
+      let x=0; const col=xx=>{ const i=(row*CW+xx)*4, r=d[i],g=d[i+1],b=d[i+2], mx=Math.max(r,g,b), mn=Math.min(r,g,b); return mx>70&&(mx-mn)/mx>.25 };
+      const runs=[];
+      while(x<CW){ if(!col(x)){ x++; continue } let e=x; while(e+1<CW&&col(e+1)) e++;
+        let R=0,G=0,B=0; for(let xx=x;xx<=e;xx++){ const i=(row*CW+xx)*4; R+=d[i]; G+=d[i+1]; B+=d[i+2] } const n=e-x+1;
+        runs.push({x,e,h:hueRGB(R/n,G/n,B/n)}); x=e+1 }
+      // Beschriftung (Fingernummer o. ä.) teilt einen Balken: gleichfarbige Hälften, die zusammen auf eine Taste passen, wieder verbinden
+      for(let i=0;i+1<runs.length;i++){ const a=runs[i], b=runs[i+1];
+        if(b.x-a.e-1<=Math.max(2,Wc*.4)&&b.e-a.x+1<=Wc*1.15&&hdist(a.h,b.h)<25){ a.e=b.e; runs.splice(i+1,1); i-- } }
+      for(const run of runs){ const x=run.x, e=run.e;
+        const w=e-x+1, cen=(x+e)/2;
+        if(w>=Wc*.25){ let R=0,G=0,B=0,cn=0; for(let xx=x;xx<=e;xx++){ if(!col(xx)) continue; const i=(row*CW+xx)*4; R+=d[i]; G+=d[i+1]; B+=d[i+2]; cn++ }
+          cn=Math.max(1,cn); const put=ki=>{ const o=(ki*P+row)*3; out[o]=R/cn; out[o+1]=G/cn; out[o+2]=B/cn };
+          if(w>1.5*Wc){ whites.forEach(ki=>{ const c0=ks[ki].c; if(c0>=x&&c0<=e) put(ki) }) }
+          else { let best=-1,bd=1e9; ks.forEach((k,ki)=>{ const dd=Math.abs(k.c-cen)+(k.black? (w>Wc*.8?Wc:0) : (w<Wc*.45?Wc*.3:0)); if(dd<bd){bd=dd;best=ki} });
+            if(best>=0&&bd<Wc*.6) put(best) } }
+      } }
+    return out };
+  return {ks,P,read,r1,r2,Y0};
+}
+/* ist eine Stelle gegenüber ihrem Normalzustand farbig verändert? liefert Farbton oder -1 */
+function actAt(fr,base,o,T,strict){ const r=fr[o],g=fr[o+1],b=fr[o+2], dd=Math.hypot(r-base[o],g-base[o+1],b-base[o+2]);
+  if(dd<T) return -1; const mx=Math.max(r,g,b), mn=Math.min(r,g,b), s=mx?(mx-mn)/mx:0;
+  if(strict? s<.25 : (s<.18&&dd<T*1.8)) return -1; const h=hueRGB(r,g,b); return h<0?0:h }
+const threshold=()=>100-90*st.cal.sens;
+function frameAct(S,fr,base,T,strict){
+  const K=S.ks.length, P=S.P, key=new Array(K), bar1=new Array(K), bar2=new Array(K), mid=new Uint8Array(K);
+  S.ks.forEach((k,ki)=>{ let n=0,lo=0,cx=0,cy=0,R=0,G=0,B=0;
+    for(const row of k.rows){ const o=(ki*P+row)*3, h=actAt(fr,base,o,T,strict); if(h>=0){ n++; if((row+.5)/NR>.64) lo++; cx+=Math.cos(h*Math.PI/180); cy+=Math.sin(h*Math.PI/180); R+=fr[o];G+=fr[o+1];B+=fr[o+2] } }
+    key[ki]= n>=2 ? {h:(Math.atan2(cy,cx)*180/Math.PI+360)%360, rgb:[R/n|0,G/n|0,B/n|0], lower:lo>=1} : null;
+    let votes=0,best=null;
+    for(const row of [NR,NR+1,NR+2]){ const o=(ki*P+row)*3, h=actAt(fr,base,o,T,true); if(h>=0&&Math.max(fr[o],fr[o+1],fr[o+2])>60){ votes++; if(!best||row===NR+1) best={h,rgb:[fr[o],fr[o+1],fr[o+2]]} } }
+    bar1[ki]= votes>=2 ? best : null;
+    { const o=(ki*P+NR+1)*3; mid[ki]= actAt(fr,base,o,T,true)>=0&&Math.max(fr[o],fr[o+1],fr[o+2])>60 ? 1 : 0 }
+    const o2=(ki*P+NR+3)*3, h2=actAt(fr,base,o2,T,true);
+    bar2[ki]= h2>=0&&Math.max(fr[o2],fr[o2+1],fr[o2+2])>60 ? 1 : 0 });
+  // Farbsaum: eine weiße Taste, die nur oben (neben einer schwarzen) farbig ist, während die schwarze Nachbartaste
+  // in derselben Farbe leuchtet, ist keine eigene Note
+  S.ks.forEach((k,ki)=>{ const a=key[ki]; if(!a||k.black||a.lower) return;
+    for(const nb of [ki-1,ki+1]){ const b=key[nb]; if(b&&S.ks[nb]&&S.ks[nb].black&&hdist(a.h,b.h)<40){ key[ki]=null; break } } });
+  return {key,bar1,bar2,mid};
+}
+function analyze(S,frames,times){
+  const F=frames.length, K=S.ks.length, len=K*S.P*3; if(!F) return [];
+  // Normalzustand jeder Stelle: Median über das Video
+  // Normalzustand jeder Stelle: Median nur über Bilder, in denen sie ungefärbt ist (auch lange gehaltene Töne verfälschen ihn nicht)
+  const base=new Uint8Array(len), step=Math.max(1,Math.floor(F/400)), P=S.P, missing=[];
+  const med=a=>{ a.sort((x,y)=>x-y); return a[a.length>>1] };
+  for(let ki=0;ki<K;ki++) for(let row=0;row<P;row++){ const o=(ki*P+row)*3, R=[],G=[],B=[]; let tot=0;
+    for(let f=0;f<F;f+=step){ const fr=frames[f], r=fr[o],g=fr[o+1],b=fr[o+2], mx=Math.max(r,g,b), mn=Math.min(r,g,b); tot++;
+      if(!mx||(mx-mn)/mx<.18){ R.push(r); G.push(g); B.push(b) } }
+    if(R.length>=Math.max(3,tot*.08)){ base[o]=med(R); base[o+1]=med(G); base[o+2]=med(B) } else missing.push([ki,row]) }
+  // Stellen, die fast nie ungefärbt sind: Normalzustand von gleichartigen Tasten derselben Reihe übernehmen
+  for(const [ki,row] of missing){ const R=[],G=[],B=[];
+    S.ks.forEach((k,kj)=>{ if(kj===ki||k.black!==S.ks[ki].black||missing.some(m=>m[0]===kj&&m[1]===row)) return; const o=(kj*P+row)*3; R.push(base[o]); G.push(base[o+1]); B.push(base[o+2]) });
+    const o=(ki*P+row)*3; if(R.length){ base[o]=med(R); base[o+1]=med(G); base[o+2]=med(B) } }
+  const T=threshold(), A=frames.map(fr=>frameAct(S,fr,base,T));
+  // Balken: nur zählen, wenn sie mindestens zwei Bilder lang da sind (Funken flackern nur kurz)
+  const bar=(f,k)=>A[f].bar1[k]&&((f>0&&A[f-1].bar1[k])||(f+1<F&&A[f+1].bar1[k]));
+  // Fallgeschwindigkeit: Abstand zwischen Balken-Anfängen in oberer und unterer Zeile. Alle Paare in ein Histogramm,
+  // die echte Laufzeit bildet die schärfste Spitze (falsche Paarungen verteilen sich)
+  const on1=[],on2=[];
+  for(let k=0;k<K;k++){ const a=[],b=[]; let p1=false,p2=false;
+    for(let f=0;f<F;f++){ const a2=!!A[f].bar2[k], a1=!!bar(f,k); if(a2&&!p2) b.push(times[f]); if(a1&&!p1) a.push(times[f]); p1=a1; p2=a2 }
+    on1.push(a); on2.push(b) }
+  const hist=new Float32Array(250);   // 10-ms-Schritte bis 2,5 s
+  for(let k=0;k<K;k++) for(const t2 of on2[k]) for(const t1 of on1[k]){ const d=t1-t2; if(d>.005&&d<2.5) hist[Math.round(d*100)]++ }
+  let bi=-1,bv=0; for(let i=1;i<249;i++){ const v3=hist[i-1]*.5+hist[i]+hist[i+1]*.5; if(v3>bv){bv=v3;bi=i} }
+  let dtBar=0; if(bi>0&&bv>=3){ let w=0,sum=0; for(let i=bi-2;i<=bi+2;i++) if(i>=0&&i<250){ w+=hist[i]; sum+=hist[i]*i } dtBar=sum/w/100 }
+  // Bildabstand: Beginn eines Balkens an der Lesezeile und die Zuordnung danach sind je um ein halbes Bild verzögert
+  const gaps=[]; for(let f=1;f<F;f+=Math.max(1,Math.floor(F/200))) gaps.push(times[f]-times[f-1]); gaps.sort((a,b)=>a-b);
+  const fdt=gaps.length?gaps[gaps.length>>1]:0;
+  let off= dtBar>0 ? Math.max(0,dtBar*(S.Y0-S.r1)/Math.max(1,S.r1-S.r2)-fdt) : 0;
+  // Leuchten die Tasten, ist der Abstand zwischen Balken an der Lesezeile und Tastenleuchten direkt messbar (genauer)
+  const hk=new Float32Array(250); let pairs=0;
+  for(let k=0;k<K;k++){ const ko=[]; let pk=false; for(let f=0;f<F;f++){ const a=!!A[f].key[k]; if(a&&!pk) ko.push(times[f]); pk=a }
+    for(const tk of ko) for(const tb of on1[k]){ const d=tk-tb; if(d>-.05&&d<2.45){ hk[Math.max(0,Math.round(d*100))]++; pairs++ } } }
+  if(pairs>=5){ let bi2=-1,bv2=0; for(let i=1;i<249;i++){ const v3=hk[i-1]*.5+hk[i]+hk[i+1]*.5; if(v3>bv2){bv2=v3;bi2=i} }
+    if(bv2>=3){ let w=0,sum=0; for(let i=bi2-2;i<=bi2+2;i++) if(i>=0&&i<250){ w+=hk[i]; sum+=hk[i]*i } off=sum/w/100 } }
+  // Bild-Index, zu dem der Balken gehört (Balken sind um "off" früher an der Lesezeile)
+  const g=new Int32Array(F); let q=0; for(let f=0;f<F;f++){ const t=times[f]-off; while(q+1<F&&times[q+1]<=t) q++; g[f]= times[q]<=t+1e-6? q : -1 }
+  // Bilder ohne Tastatur (Intro, Abspann, Abblende, Werbung): wenn ein großer Teil aller Tasten auf einmal "anders" aussieht,
+  // ist dort keine normale Tastatur zu sehen -> das Bild zählt als leer
+  const valid=new Uint8Array(F);
+  // ...und Abblenden: die weißen Tasten sind insgesamt deutlich dunkler oder heller als normal
+  const wRow=[]; S.ks.forEach((k,ki)=>{ if(!k.black) for(const row of k.rows) if((row+.5)/NR>.64) wRow.push((ki*S.P+row)*3) });
+  let bsum=0; for(const o of wRow) bsum+=base[o]+base[o+1]+base[o+2];
+  for(let f=0;f<F;f++){ let c=0; for(let k=0;k<K;k++) if(A[f].key[k]) c++;
+    let fsum=0; for(const o of wRow) fsum+=frames[f][o]+frames[f][o+1]+frames[f][o+2];
+    const ratio= bsum? fsum/bsum : 1;
+    valid[f]= c<=Math.max(12,K*.25)&&ratio>.88&&ratio<1.15 ? 1 : 0 }
+  // Tastenzustand pro Bild (Taste leuchtet oder Balken an der Lesezeile, zeitlich passend verschoben)
+  // Leuchten die Tasten in diesem Video? Dann bestimmen die Tasten, wann eine Note klingt, die Balken helfen nur beim Trennen.
+  let both=0,barOnly=0;
+  for(let f=0;f<F;f++){ if(!valid[f]||g[f]<0||!valid[g[f]]) continue; for(let k=0;k<K;k++) if(bar(g[f],k)){ if(A[f].key[k]) both++; else barOnly++ } }
+  const keysLit= both+barOnly>20 && both/(both+barOnly)>.5;
+  const ON=new Array(F), BAR=new Array(F), MID=new Array(F);
+  for(let f=0;f<F;f++){ ON[f]=new Array(K).fill(null); BAR[f]=new Uint8Array(K); MID[f]=new Uint8Array(K);
+    if(!valid[f]) continue;
+    for(let k=0;k<K;k++){ const kk=A[f].key[k], gb=g[f]>=0&&valid[g[f]]&&bar(g[f],k), bb= gb ? A[g[f]].bar1[k] : null;
+      BAR[f][k]= gb?1:0; MID[f][k]= g[f]>=0&&valid[g[f]]&&A[g[f]].mid[k] ? 1 : 0; ON[f][k]= keysLit ? kk : (kk||bb) } }
+  // Noten bilden: Farbwechsel erst nach 2 Bildern übernehmen (Glühen/Kompression flackern),
+  // Tonwiederholung trennen, wenn der Balken eine Lücke hatte
+  const out=[], act=new Map();
+  const close=(n,t)=>{ n.e=t; n.hue=(Math.atan2(n.sy,n.sx)*180/Math.PI+360)%360; out.push(n) };
+  const meanHue=n=>(Math.atan2(n.sy,n.sx)*180/Math.PI+360)%360;
+  for(let f=0;f<F;f++){ const t=times[f];
+    for(let k=0;k<K;k++){ const hit=ON[f][k], bb=BAR[f][k], p=S.ks[k].p;
+      let n=act.get(p);
+      if(n&&!keysLit){ if(bb){ if(n.barGap&&n.barSeen){ close(n,t); act.delete(p); n=null } else n.barSeen=true } else if(n.barSeen) n.barGap=true }
+      if(hit){ const r=hit.h*Math.PI/180;
+        if(n&&n.k>2&&hdist(meanHue(n),hit.h)>50){ n.chg=(n.chg||0)+1; if(n.chg>=2){ close(n,n.chgT); act.delete(p); n=null } else n.chgT=t } else if(n) n.chg=0;
+        if(!n){ n={p,s:t,sx:0,sy:0,k:0,barSeen:!!bb,barGap:false,bars:0}; act.set(p,n) }
+        n.sx+=Math.cos(r); n.sy+=Math.sin(r); n.k++; if(bb) n.bars++ }
+      else if(n){ close(n,t); act.delete(p) } } }
+  for(const n of act.values()) close(n,times[F-1]);
+  // Lücken überbrücken: kurze Aussetzer derselben Taste und Hand gehören zur selben Note,
+  // außer der Balken zeigt dort eine echte Lücke (dann ist es eine Tonwiederholung)
+  const gaps2=[]; for(let f=1;f<F;f+=Math.max(1,Math.floor(F/200))) gaps2.push(times[f]-times[f-1]); gaps2.sort((a,b)=>a-b);
+  // nur Aussetzer von höchstens einem Bild überbrücken: zwei und mehr dunkle Bilder sind ein echter neuer Anschlag
+  const fd=gaps2.length?gaps2[gaps2.length>>1]:1/30, bridge=fd*1.6;
+  const fIdx=t=>{ let lo=0,hi=F-1; while(lo<hi){ const m=(lo+hi)>>1; if(times[m]<t) lo=m+1; else hi=m } return lo };
+  const byKey=new Map(); out.forEach(n=>{ if(!byKey.has(n.p)) byKey.set(n.p,[]); byKey.get(n.p).push(n) });
+  // Balkenanfänge je Taste (zeitlich verschoben): ein neuer Balken = neuer Anschlag
+  // Balkenanfang: Balken (Abstimmung) erscheint neu, oder die mittlere Zeile war kurz leer (enge Lücke zwischen zwei Balken)
+  const bStart=S.ks.map(()=>[]);
+  for(let k=0;k<K;k++) for(let f=2;f<F;f++) if(BAR[f][k]&&!BAR[f-1][k]&&(!BAR[f-2][k]||!keysLit)) bStart[k].push(times[f]);
+  const merged=[];
+  for(const [p,list] of byKey){ list.sort((a,b)=>a.s-b.s); const ki=S.ks.findIndex(k=>k.p===p);
+    let cur=null;
+    for(const n of list){
+      if(cur&&n.s-cur.e<=bridge&&hdist(cur.hue,n.hue)<50){
+        const newBar=bStart[ki].some(tb=>tb>cur.e-fd*2.5&&tb<n.s+fd*2.5);
+        if(!newBar){ cur.e=Math.max(cur.e,n.e); cur.k+=n.k; cur.bars+=n.bars; cur.sx+=n.sx; cur.sy+=n.sy; cur.hue=meanHue(cur); continue } }
+      if(cur) merged.push(cur); cur=Object.assign({},n) }
+    if(cur) merged.push(cur) }
+  // einzelne Flacker-Bilder ohne Balken sind keine Noten
+  const final=merged.filter(n=>n.k>=2||n.bars>0).sort((a,b)=>a.s-b.s);
+  final.offset=off; return final;
+}
+
+/* Vorschau beim Einrichten: Normalzustand aus den anderen Tasten im selben Bild schätzen */
+function detect(){
+  const S=makeSampler(); if(!S||v.readyState<2) return new Map();
+  const fr=S.read(), P=S.P, len=fr.length, base=new Uint8Array(len);
+  const med=(list)=>{ list.sort((a,b)=>a-b); return list[list.length>>1]||0 };
+  for(let row=0;row<P;row++) for(const black of [false,true]) for(let c=0;c<3;c++){
+    const idx=[]; S.ks.forEach((k,ki)=>{ if(row<NR&&k.black!==black) return; if(row<NR&&!k.rows.includes(row)) return; idx.push((ki*P+row)*3+c) });
+    const m=med(idx.map(o=>fr[o])); idx.forEach(o=>base[o]=m) }
+  const A=frameAct(S,fr,base,threshold(),true), out=new Map(); prevBars=new Map();
+  S.ks.forEach((k,ki)=>{ if(A.key[ki]) out.set(k.p,A.key[ki]); else if(A.bar1[ki]) prevBars.set(k.p,A.bar1[ki]) });
+  return out;
+}
 
 /* ---------- Auslesen: Video einmal stumm durchlaufen lassen ---------- */
 let finishScan=null;
 async function scanNotes(){
   if(!v.duration||scanning) return;
-  if(!st.cal.lay&&!tryFit()){ flash('c','Erst Tasten erkennen'); return }
+  syncLines(); if(!st.cal.lay&&!(st.cal.box?tryFit():autoBox())){ flash('c','Erst die Tastatur einrichten'); return }
   scanning=true; aborted=false; stopSynth();
   const keepLoop=st.loop; st.loop=false; cancelGap(); v.pause(); applySound();
   setup=false; stage.classList.remove('setup'); drawOverlay();
-  $('scan').hidden=false; $('deck').classList.add('busy'); $('scanBar').style.width='0'; $('scanTxt').textContent='0 %'; drawLoop();
+  $('scan').hidden=false; $('wrap').classList.add('busy'); $('scanBar').style.width='0'; $('scanTxt').textContent='0 %'; drawLoop();
   v.currentTime=0; await new Promise(r=>v.addEventListener('seeked',r,{once:true}));
   v.playbackRate=+$('scanRate').value;
-  const act=new Map(), out=[]; let tl=0, ks=null;
-  const close=(n,t)=>{ n.e=t; n.hue=(Math.atan2(n.sy,n.sx)*180/Math.PI+360)%360; out.push(n) };
+  const Smp=makeSampler(), frames=[], times=[]; let tl=0;
+  if(!Smp){ scanning=false; $('scan').hidden=true; $('wrap').classList.remove('busy'); flash('c','Erst die Tastatur einrichten'); return }
   await new Promise(res=>{
     let done=false;
     finishScan=()=>{ if(done) return; done=true; v.removeEventListener('ended',finishScan); res() };
     v.addEventListener('ended',finishScan);
     const frame=(now,meta)=>{
       if(done) return; if(!scanning||v.ended){ finishScan(); return }
-      const t=meta?meta.mediaTime:v.currentTime; tl=t;
-      const g=grab();
-      if(g){ if(!ks) ks=curKeys(g);
-        const cur=readKeys(g.A,g.B,g.w,ks,st.cal.sat);
-        for(const [p,q] of cur){ const r=q.h*Math.PI/180; let n=act.get(p);
-          if(n&&n.k>2&&hdist((Math.atan2(n.sy,n.sx)*180/Math.PI+360)%360,q.h)>50){ close(n,t); n=null }
-          if(!n){ n={p,s:t,sx:0,sy:0,k:0}; act.set(p,n) }
-          n.sx+=Math.cos(r); n.sy+=Math.sin(r); n.k++ }
-        for(const [p,n] of act) if(!cur.has(p)){ close(n,t); act.delete(p) } }
+      const t=meta?meta.mediaTime:v.currentTime;
+      if(t>tl||!frames.length){ tl=t; frames.push(Smp.read()); times.push(t) }
       const pct=Math.min(100,Math.round(t/v.duration*100));
-      $('scanBar').style.width=pct+'%'; $('scanTxt').textContent=pct+' % · '+(out.length+act.size)+' Noten';
+      $('scanBar').style.width=pct+'%'; $('scanTxt').textContent=pct+' % gelesen';
       next();
     };
     const next=()=> v.requestVideoFrameCallback? v.requestVideoFrameCallback(frame) : requestAnimationFrame(()=>frame(0,null));
@@ -748,10 +992,11 @@ async function scanNotes(){
     v.play().catch(()=>{ aborted=true; finishScan() });
   });
   v.pause();
-  for(const n of act.values()) close(n,tl);
+  $('scanTxt').textContent='Noten werden ausgewertet …'; await new Promise(r=>setTimeout(r,30));
+  const out=analyze(Smp,frames,times);
   scanning=false; st.loop=keepLoop; applySpeed(); applySound();
-  $('scan').hidden=true; $('deck').classList.remove('busy');
-  const ns=out.filter(n=>n.e-n.s>=.035).sort((a,b)=>a.s-b.s).map(n=>({p:n.p,s:n.s,e:n.e,hue:n.hue}));
+  $('scan').hidden=true; $('wrap').classList.remove('busy');
+  const ns=out.filter(n=>n.e-n.s>=.03).sort((a,b)=>a.s-b.s).map(n=>({p:n.p,s:n.s,e:n.e,hue:n.hue}));
   if(!ns.length){ v.currentTime=0; drawLoop(); $('nInfo').textContent='Keine Noten erkannt. Prüfe unter „Einrichten“, ob beim Abspielen Punkte auf gedrückten Tasten erscheinen.'; flash('c','Keine Noten erkannt'); return }
   st.handMode=assignHands(ns); ns.forEach(n=>delete n.hue);
   notes=ns; assignFingers(notes); st.keyInfo=detectKey(notes); st.notes=pack();
@@ -803,9 +1048,12 @@ function corr(a,b){ const ma=a.reduce((x,y)=>x+y)/12, mb=b.reduce((x,y)=>x+y)/12
   for(let i=0;i<12;i++){ const x=a[i]-ma,y=b[i]-mb; s+=x*y; sa+=x*x; sb+=y*y } return s/(Math.sqrt(sa*sb)||1) }
 function detectKey(ns){
   const h=new Array(12).fill(0); ns.forEach(n=>h[n.p%12]+=Math.min(2,n.e-n.s)+.1);
-  let best={r:-2};
-  for(let k=0;k<12;k++) for(const [prof,mode] of [[MAJ,'Dur'],[MIN,'Moll']]){
-    const r=corr(h,prof.map((_,i)=>prof[(i-k+12)%12])); if(r>best.r) best={r,k,mode} }
+  // zuerst die Vorzeichen: welche Dur-Tonleiter deckt die meisten (nach Dauer gewichteten) Töne ab?
+  const scl=[0,2,4,5,7,9,11]; let cov=-1,bk=0;
+  for(let k=0;k<12;k++){ const v=scl.reduce((t,i)=>t+h[(k+i)%12],0); if(v>cov+1e-9){ cov=v; bk=k } }
+  // dann Dur oder parallele Moll (gleiche Vorzeichen) über das Tonprofil
+  const rk=(bk+9)%12, cM=corr(h,MAJ.map((_,i)=>MAJ[(i-bk+12)%12])), cm=corr(h,MIN.map((_,i)=>MIN[(i-rk+12)%12]));
+  const best= cM>=cm ? {k:bk,mode:'Dur'} : {k:rk,mode:'Moll'};
   const SIG=[0,-5,2,-3,4,-1,6,1,-4,3,-2,5], rel=best.mode==='Dur'?best.k:(best.k+3)%12, s=SIG[rel];
   const MJ=['C','Des','D','Es','E','F','Fis','G','As','A','B','H'];
   const MS=['c','cis','d','dis','e','f','fis','g','gis','a','ais','h'], MF=['c','des','d','es','e','f','ges','g','as','a','b','h'];
@@ -817,7 +1065,7 @@ function detectKey(ns){
 function noteRange(){ if(st.range) return st.range; let lo=127,hi=0; notes.forEach(n=>{lo=Math.min(lo,n.p);hi=Math.max(hi,n.p)});
   lo-=2; hi+=2; while(isBlack(lo)) lo--; while(isBlack(hi)) hi++; return [lo,hi] }
 let cw=0, chh=0;
-function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,Math.min(r,h/2,w/2)); else c.rect(x,y,w,h) }
+function rr(c,x,y,w,h,r){ c.beginPath(); w=Math.max(0,w); h=Math.max(0,h); if(c.roundRect) c.roundRect(x,y,w,h,Math.max(0,Math.min(r,h/2,w/2))); else c.rect(x,y,w,h) }
 function drawNotes(){
   const c=nctx, W=cw, H=chh; if(!W||!H) return;
   c.fillStyle=COL.bg; c.fillRect(0,0,W,H);
@@ -854,72 +1102,95 @@ function drawNotes(){
     const r=Math.min(10,k.w*.45), y=k.black? top+kh*.62-r-4 : H-r-6;
     c.beginPath(); c.arc(k.c,y,r,0,7); c.fillStyle='#0b1220'; c.fill();
     c.fillStyle='#fff'; c.font='600 '+(r*1.2)+'px Figtree, system-ui, sans-serif'; c.fillText(n.f,k.c,y+.5) }
-  if(st.keyInfo){ c.textAlign='right'; c.textBaseline='top'; c.font='600 15px Fraunces, Georgia, serif'; c.fillStyle='#e9ecf2';
-    c.fillText(st.keyInfo.name,W-12,10); c.font='500 11px Figtree, system-ui, sans-serif'; c.fillStyle=COL.mute; c.fillText(st.keyInfo.sig,W-12,30) }
 }
 
-/* ---------- Einrichtung: Linien ziehen, Tasten erkennen ---------- */
+/* ---------- Einrichtung: Rahmen um die Tastatur ---------- */
 function vRect(){ const r=stage.getBoundingClientRect(), vw=v.videoWidth||16, vh=v.videoHeight||9, s=Math.min(r.width/vw,r.height/vh), w=vw*s, h=vh*s;
   return {x:(r.width-w)/2,y:(r.height-h)/2,w,h} }
+function boxPx(){ const R=vRect(), b=st.cal.box; return b&&{x0:R.x+b.x0*R.w,x1:R.x+b.x1*R.w,y0:R.y+b.y0*R.h,y1:R.y+b.y1*R.h} }
+const HANDLES=['nw','n','ne','e','se','s','sw','w'];
+function handlePos(B,h){ const mx=(B.x0+B.x1)/2, my=(B.y0+B.y1)/2;
+  return {nw:[B.x0,B.y0],n:[mx,B.y0],ne:[B.x1,B.y0],e:[B.x1,my],se:[B.x1,B.y1],s:[mx,B.y1],sw:[B.x0,B.y1],w:[B.x0,my]}[h] }
 function drawOverlay(){
   const c=octx; c.clearRect(0,0,cw,chh); if(!setup) return;
-  const R=vRect(), k=st.cal, ya=R.y+k.ya*R.h, yb=R.y+k.yb*R.h, xl=R.x+k.xl*R.w, xr=R.x+k.xr*R.w;
-  c.lineWidth=2; c.setLineDash([6,5]);
-  c.strokeStyle='#ff5a7a'; c.beginPath(); c.moveTo(xl,ya); c.lineTo(xr,ya); c.stroke();
-  c.strokeStyle='#ffffff'; c.beginPath(); c.moveTo(xl,yb); c.lineTo(xr,yb); c.moveTo(xl,R.y); c.lineTo(xl,R.y+R.h); c.moveTo(xr,R.y); c.lineTo(xr,R.y+R.h); c.stroke();
-  c.setLineDash([]);
-  const dot=(x,y,r,f,s)=>{ c.beginPath(); c.arc(x,y,r,0,7); c.fillStyle=f; c.fill(); if(s){ c.strokeStyle=s; c.lineWidth=2; c.stroke() } };
-  dot(xl+14,ya,8,'#ff5a7a','#fff'); dot(xl+14,yb,8,'#fff','#0b1220');
-  c.font='600 11px Figtree, system-ui, sans-serif'; c.textAlign='left'; c.textBaseline='middle';
-  const tag=(t,x,y)=>{ const w=c.measureText(t).width+12; c.fillStyle='rgba(0,0,0,.72)'; rr(c,x,y-10,w,20,10); c.fill(); c.fillStyle='#fff'; c.fillText(t,x+6,y) };
-
-  const L=k.lay;
-  if(L){ const s=R.w; // Videobreite in Bildschirmpunkten
-    const ks=keysOf({a:R.x+L.a*s,W:L.W*s,j0:L.j0,j1:L.j1,o:L.o,ob:L.ob},k.shift);
-    // Markierungen sitzen direkt auf den Linien: rot = schwarze Taste, dunkel = weiße Taste
-    for(const q of ks){ if(q.black){ c.fillStyle='#ff5a7a'; c.fillRect(q.c-1.5,ya-7,3,14) } else { c.fillStyle='#0b1220'; c.fillRect(q.c-1.5,yb-7,3,14);
-      if(q.p%12===0){ c.textAlign='center'; tag('C'+(Math.floor(q.p/12)-1),q.c-14,yb+24); c.textAlign='left' } } }
-    for(const q of ks){ const h=prevDet.get(q.p); if(h) dot(q.c,q.black?ya:yb,7,'rgb('+h.rgb.join(',')+')','#fff') }
+  const B=boxPx(), k=st.cal;
+  c.fillStyle='rgba(5,7,10,.62)';
+  if(B){ c.beginPath(); c.rect(0,0,cw,chh); c.rect(B.x0,B.y0,B.x1-B.x0,B.y1-B.y0); c.fill('evenodd') } else c.fillRect(0,0,cw,chh);
+  if(B){
+    const L=k.lay, R=vRect();
+    if(L){ const ks=keysOf({a:R.x+L.a*R.w,W:L.W*R.w,j0:L.j0,j1:L.j1,o:L.o,ob:L.ob},k.shift), h=B.y1-B.y0;
+      c.lineWidth=1;
+      for(const q of ks) if(!q.black){ const x=q.c-L.W*R.w/2, w=L.W*R.w; const hit=prevDet.get(q.p);
+        if(hit){ c.fillStyle='rgba('+hit.rgb.join(',')+',.55)'; c.fillRect(x,B.y0,w,h) }
+        c.strokeStyle='rgba(74,156,240,.9)'; c.strokeRect(x+.5,B.y0+.5,w-1,h-1) }
+      for(const q of ks) if(q.black){ const w=L.W*R.w*.6, x=q.c-w/2, hh=h*.6; const hit=prevDet.get(q.p);
+        c.fillStyle= hit? 'rgba('+hit.rgb.join(',')+',.85)' : 'rgba(255,90,122,.35)'; c.fillRect(x,B.y0,w,hh);
+        c.strokeStyle='#ff5a7a'; c.strokeRect(x+.5,B.y0+.5,w-1,hh-1) }
+      for(const q of ks){ const hb=prevBars.get(q.p); if(!hb) continue; c.beginPath(); c.arc(q.c,B.y0-10,5,0,7); c.strokeStyle='rgb('+hb.rgb.join(',')+')'; c.lineWidth=2.5; c.stroke() }
+      c.font='600 11px Figtree, system-ui, sans-serif'; c.textAlign='center'; c.textBaseline='middle';
+      for(const q of ks) if(q.p%12===0){ const t='C'+(Math.floor(q.p/12)-1), tw=c.measureText(t).width+10;
+        const ly=B.y1+24<chh? B.y1+4 : B.y1-22; c.fillStyle='#4a9cf0'; rr(c,q.c-tw/2,ly,tw,18,9); c.fill(); c.fillStyle='#0b1220'; c.fillText(t,q.c,ly+9) }
+    }
+    c.strokeStyle='#fff'; c.lineWidth=2; c.strokeRect(B.x0,B.y0,B.x1-B.x0,B.y1-B.y0);
+    for(const h of HANDLES){ const [x,y]=handlePos(B,h); c.beginPath(); c.arc(x,y,h.length===2?9:6,0,7); c.fillStyle='#fff'; c.fill(); c.strokeStyle='#0b1220'; c.lineWidth=2; c.stroke() }
   }
-  const msg= L? fitMsg+' · '+prevDet.size+' gedrückt' : 'Rote Linie durch die schwarzen Tasten, weiße Linie durch die weißen'+(fitMsg?' · '+fitMsg:'');
-  c.font='600 13px Figtree, system-ui, sans-serif'; const tw=c.measureText(msg).width+20;
-  c.fillStyle='rgba(0,0,0,.75)'; rr(c,(cw-tw)/2,10,tw,28,14); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(msg,cw/2,24);
+  const msg= !B ? 'Ziehe einen Rahmen um die Tastatur' : k.lay ? fitMsg+' · '+prevDet.size+' gedrückt'+(prevBars.size?' · '+prevBars.size+' Balken':'') : fitMsg||'Rahmen anpassen';
+  c.font='600 13px Figtree, system-ui, sans-serif'; const tw=c.measureText(msg).width+22;
+  c.fillStyle='rgba(0,0,0,.8)'; rr(c,(cw-tw)/2,10,tw,28,14); c.fill(); c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(msg,cw/2,24);
 }
+let drag=null;
+function toNorm(px,py){ const R=vRect(); return [Math.max(0,Math.min(1,(px-R.x)/R.w)),Math.max(0,Math.min(1,(py-R.y)/R.h))] }
 ov.addEventListener('pointerdown',e=>{
   if(!setup) return; e.preventDefault();
-  const r=stage.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top, R=vRect(), k=st.cal;
-  const cand=[['ya',Math.abs(py-(R.y+k.ya*R.h))],['yb',Math.abs(py-(R.y+k.yb*R.h))],['xl',Math.abs(px-(R.x+k.xl*R.w))],['xr',Math.abs(px-(R.x+k.xr*R.w))]].sort((a,b)=>a[1]-b[1]);
-  if(cand[0][1]<32){ dragH=cand[0][0]; ov.setPointerCapture(e.pointerId) }
+  const r=stage.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top, B=boxPx();
+  let mode=null;
+  if(B){
+    // Ecken haben Vorrang, dann die Kanten (nur direkt an der Linie), sonst im Rahmen = verschieben
+    let bd=1e9; for(const h of ['nw','ne','se','sw']){ const [x,y]=handlePos(B,h), d=Math.hypot(px-x,py-y); if(d<24&&d<bd){ bd=d; mode=h } }
+    const inX=px>B.x0-12&&px<B.x1+12, inY=py>B.y0-12&&py<B.y1+12;
+    if(!mode&&inX&&inY){ const e=[['w',Math.abs(px-B.x0)],['e',Math.abs(px-B.x1)],['n',Math.abs(py-B.y0)],['s',Math.abs(py-B.y1)]].sort((a,b)=>a[1]-b[1]);
+      const lim=Math.min(12,(B.y1-B.y0)/4,(B.x1-B.x0)/4); if(e[0][1]<Math.max(6,lim)) mode=e[0][0] }
+    if(!mode&&px>B.x0&&px<B.x1&&py>B.y0&&py<B.y1) mode='move' }
+  if(!mode){ const [nx,ny]=toNorm(px,py); st.cal.box={x0:nx,x1:nx,y0:ny,y1:ny}; mode='se' }
+  drag={mode,start:toNorm(px,py),box:Object.assign({},st.cal.box)}; ov.setPointerCapture(e.pointerId);
 });
 ov.addEventListener('pointermove',e=>{
-  if(!dragH) return; const r=stage.getBoundingClientRect(), R=vRect(), k=st.cal;
-  const nx=Math.max(0,Math.min(1,(e.clientX-r.left-R.x)/R.w)), ny=Math.max(0,Math.min(1,(e.clientY-r.top-R.y)/R.h));
-  if(dragH==='ya') k.ya=Math.min(ny,k.yb-.01); else if(dragH==='yb') k.yb=Math.max(ny,k.ya+.01);
-  else if(dragH==='xl') k.xl=Math.min(nx,k.xr-.1); else k.xr=Math.max(nx,k.xl+.1);
-  drawOverlay();
+  if(!drag) return; const r=stage.getBoundingClientRect(), [nx,ny]=toNorm(e.clientX-r.left,e.clientY-r.top), o=drag.box, b=st.cal.box, m=drag.mode;
+  if(m==='move'){ const dx=Math.max(-o.x0,Math.min(1-o.x1,nx-drag.start[0])), dy=Math.max(-o.y0,Math.min(1-o.y1,ny-drag.start[1]));
+    b.x0=o.x0+dx; b.x1=o.x1+dx; b.y0=o.y0+dy; b.y1=o.y1+dy }
+  else { if(m.includes('w')) b.x0=nx; if(m.includes('e')) b.x1=nx; if(m.includes('n')) b.y0=ny; if(m.includes('s')) b.y1=ny }
+  st.cal.lay=null; fitMsg=''; drawOverlay();
 });
-ov.addEventListener('pointerup',()=>{ if(dragH){ dragH=null; tryFit(); prevDet=detect(); drawOverlay(); save() } });
+function endDrag(){ if(!drag) return; drag=null; const b=st.cal.box;
+  if(b.x0>b.x1) [b.x0,b.x1]=[b.x1,b.x0]; if(b.y0>b.y1) [b.y0,b.y1]=[b.y1,b.y0];
+  if(b.x1-b.x0<.05||b.y1-b.y0<.02){ fitMsg='Rahmen ist zu klein'; st.cal.lay=null; drawOverlay(); return }
+  tryFit(); prevDet=detect(); drawOverlay(); save() }
+ov.addEventListener('pointerup',endDrag); ov.addEventListener('pointercancel',endDrag);
 
-$('fitBtn').onclick=()=>{ tryFit(); prevDet=detect(); drawOverlay() };
+function autoBox(){ const b=findBox(); if(b){ st.cal.box=b; return tryFit() } fitMsg='Tastatur nicht gefunden, bitte Rahmen aufziehen'; st.cal.lay=null; return false }
+$('fitBtn').onclick=()=>{ autoBox(); prevDet=detect(); drawOverlay(); save() };
+$('kMode').onchange=e=>{ st.cal.mode=e.target.value; if(st.cal.box) tryFit(); prevDet=detect(); drawCal(); drawOverlay(); save() };
 $('octDn').onclick=()=>{ st.cal.shift--; drawCal(); drawOverlay(); save() };
 $('octUp').onclick=()=>{ st.cal.shift++; drawCal(); drawOverlay(); save() };
-$('sat').oninput=e=>{ st.cal.sat=+e.target.value; drawCal(); prevDet=detect(); drawOverlay(); save() };
+$('sat').oninput=e=>{ st.cal.sens=+e.target.value; drawCal(); prevDet=detect(); drawOverlay(); save() };
 $('off').oninput=e=>{ st.cal.off=+e.target.value; drawCal(); stopSynth(); save() };
 function drawCal(){ const k=st.cal;
-  $('sat').value=k.sat; $('satVal').textContent=Math.round(k.sat*100)+' %';
+  if(k.sens==null) k.sens=.6; $('sat').value=k.sens; $('satVal').textContent=Math.round(k.sens*100)+' %';
   $('octVal').textContent='Oktave '+(k.shift>0?'+':k.shift<0?'−':'±')+Math.abs(k.shift);
   $('off').value=k.off; $('offVal').textContent=(k.off>0?'+':'')+k.off+' ms';
-  $('fitBtn').classList.toggle('on',!!k.lay);
+  $('kMode').value=String(k.mode||'auto');
 }
-function openSetup(){ if(!v.src) return flash('c','Erst ein Video laden'); setup=true; v.pause(); stage.classList.add('setup');
+function openSetup(){ if(!v.src){ closeDrawer(); return flash('c','Erst ein Video laden') } closeDrawer(); setup=true; v.pause(); stage.classList.add('setup');
   $('calPanel').hidden=false; $('calBtn').classList.add('on'); $('calBtn').textContent='Einrichtung schließen'; applyZoom(); applyView();
-  if(!st.cal.lay) tryFit(); else fitMsg='Tasten gespeichert';
-  prevDet=detect(); drawCal(); drawOverlay() }
-function closeSetup(){ setup=false; dragH=null; stage.classList.remove('setup'); $('calPanel').hidden=true;
+  const go=()=>{ if(!st.cal.box) autoBox(); else if(!st.cal.lay) tryFit(); else fitMsg='Gespeicherte Einstellung';
+    prevDet=detect(); drawCal(); drawOverlay() };
+  if(v.readyState>=2) go(); else v.addEventListener('loadeddata',go,{once:true}) }
+function closeSetup(){ setup=false; drag=null; stage.classList.remove('setup'); $('calPanel').hidden=true;
   $('calBtn').classList.remove('on'); $('calBtn').textContent='Einrichten'; applyZoom(); applyView(); drawOverlay() }
 $('calBtn').onclick=()=> setup? closeSetup() : openSetup();
 
 function drawNoteInfo(){
+  $('keyTag').hidden=!(notes&&st.keyInfo); if(notes&&st.keyInfo) $('keyTag').textContent=st.keyInfo.name;
   $('swapH').hidden=!notes;
   if(!notes){ $('nInfo').textContent='Noch keine Noten ausgelesen. Tippe auf Einrichten.'; return }
   const nl=notes.filter(n=>n.h==='L').length;
@@ -952,10 +1223,19 @@ let lock=null; async function lockOn(){ try{ if(!lock&&navigator.wakeLock){ lock
 document.addEventListener('visibilitychange',()=>{ if(document.hidden){ if(!scanning) save() } else if(!v.paused) lockOn() });
 window.addEventListener('pagehide',()=>{ if(!scanning) save() });
 
+/* Optionen-Fach */
+function openDrawer(){ if(scanning) return; $('drawer').hidden=false; $('scrim').hidden=false }
+function closeDrawer(){ $('drawer').hidden=true; $('scrim').hidden=true }
+$('setBtn').onclick=openDrawer; $('setClose').onclick=closeDrawer; $('scrim').onclick=closeDrawer;
+$('calDone').onclick=closeSetup;
+$('sVal').onclick=()=>{ const i=PRESETS.indexOf(st.speed); setSpeed(PRESETS[(i+1)%PRESETS.length]) };
+$('openBtn').addEventListener('click',closeDrawer);
+
 /* Tastatur */
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&!$('lib').hidden){ closeLib(); return }
-  if(['INPUT','SELECT'].includes(e.target.tagName)||scanning||!$('lib').hidden) return;
+  if(e.key==='Escape'&&!$('drawer').hidden){ closeDrawer(); return }
+  if(['INPUT','SELECT'].includes(e.target.tagName)||scanning||!$('lib').hidden||(!$('drawer').hidden&&e.key!=='o'&&e.key!=='O')) return;
   const k=e.key;
   if(k===' '){e.preventDefault();toggle()}
   else if(k==='ArrowLeft'){e.preventDefault();jump(e.shiftKey?-5:-2)}
@@ -969,6 +1249,7 @@ document.addEventListener('keydown',e=>{
   else if(k==='l'||k==='L') $('lOn').click();
   else if(k==='m'||k==='M') $('mAdd').click();
   else if(k==='v'||k==='V'){ if(notes){ st.view=st.view==='notes'?'video':'notes'; applyView(); save() } }
+  else if(k==='o'||k==='O'){ $('drawer').hidden? openDrawer() : closeDrawer() }
   else if(k==='t'||k==='T'){ const o=notes?['video','synth','off']:['video','off']; st.sound=o[(o.indexOf(st.sound)+1)%o.length]; stopSynth(); ensureCtx(); applySound(); save() }
 });
 drawAll(); updateEmpty();
